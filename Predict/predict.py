@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import cv2
 import time
 import serial
@@ -49,7 +52,7 @@ def calculate_angle_arm(a, b, c):
 
 # YOLOv8 모델을 로드합니다.
 model_pose = YOLO("yolov8m-pose")
-model_hands = YOLO("240502.pt")
+model_hands = YOLO("240503.pt")
 
 box_cx, box_cy = None, None  # predict box
 pbox_cx, pbox_cy = None, None  # pointing box
@@ -234,8 +237,8 @@ while True:
                 gesture = 'R'
             else:
                 gesture = 'L'
-    elif gesture_this =='T':
-        gesture='T'
+    # elif gesture_this =='T':
+    #     gesture='T'
     elif(gesture_this==gesture_pre):
         count_gesture+=1
         if(count_gesture>3):
