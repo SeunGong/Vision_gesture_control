@@ -1,4 +1,5 @@
 import cv2
+import serial
 import numpy as np
 import pyrealsense2 as rs
 from ultralytics import YOLO
@@ -6,6 +7,8 @@ import time
 from collections import defaultdict
 import matplotlib.pyplot as plt
 
+# Serial setting
+ser = serial.Serial('/dev/ttyUSB0',115200)
 # 카메라 프레임의 원하는 너비와 높이를 정의합니다.
 W, H = 640, 480
 
@@ -82,9 +85,11 @@ while True:
                         # print(distance)
                     
                         if distance > change_threshold:
-                            print("Release")
+                            # print("Release")
+                            object_name='R'
                         else :
-                            print("Stop")
+                            # print("Stop")
+                            object_name='S'
                             
                     prev_cx_stop, prev_cy_stop = current_cx_stop, current_cy_stop      
 
@@ -100,6 +105,7 @@ while True:
                     current_cx_move, current_cy_move = int((x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
                     
                     prev_cx_move, prev_cy_move = current_cx_move, current_cy_move
+                    object_name='M'
                     print(angle)
                     # Draw bounding box and center annotation on the image
                     # print(current_cx_move,current_cy_move)
@@ -113,6 +119,7 @@ while True:
                     cv2.rectangle(color_image, (x1, y1), (x2, y2), (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
                     cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 
                                 0.7, (0, 0, 255), 2, cv2.LINE_4)
+                    object_name='Y'
                     print(object_name)
                 else:
                     b = box.xyxy[0].to('cpu').detach().numpy().copy()  # Move results from GPU to CPU
@@ -160,10 +167,16 @@ while True:
         "Turn": lambda angle: angle>0 and angle < 60,
         # "Move on": lambda angle: angle > 150,
     }
-
+    if object_name=='Forward':
+        object_name='F'
+    elif object_name=='Backward':
+        object_name='B'
+    elif object_name=='Turn':
+        object_name='T'
+    
     # if conditions.get(object_name, lambda x: False)(angle):
     #     print(object_name,angle)
-
+    ser.write(str(object_name).encode('utf-8')+b'\r\n')
     cv2.imshow("color_image", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     
     # cv2.imshow("color_image", color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
@@ -172,5 +185,6 @@ while True:
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+        ser.close()
 
 pipeline.stop()  # 카메라 파이프라인을 종료합니다.
