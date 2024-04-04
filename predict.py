@@ -45,8 +45,8 @@ model_hands = YOLO("bestv2.pt")
 #Find hands.
 object_name = 'none'
 # Initialize variables outside of your main processing loop
-prev_cx, prev_cy = None, None  # Previous center coordinates
-current_cx, current_cy = None, None
+prev_cx_stop, prev_cy_stop, prev_cx_move, prev_cy_move = None, None, None, None  # Previous center coordinates
+current_cx_stop, current_cy_stop, current_cx_move, current_cy_move = None, None, None, None
 change_threshold = 15  # Threshold for detecting significant change
 angle =0
 
@@ -74,25 +74,39 @@ while True:
                     b = box.xyxy[0].to('cpu').detach().numpy().copy()  # Move results from GPU to CPU
                     c = box.cls
                     x1, y1, x2, y2 = map(int, b[:4])
-                    current_cx, current_cy = int((x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
+                    current_cx_stop, current_cy_stop = int((x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
                     
-                    if prev_cx is not None and prev_cy is not None:
+                    if prev_cx_stop is not None and prev_cy_stop is not None:
                     # Calculate Euclidean distance between previous and current center
-                        distance = np.sqrt((current_cx - prev_cx)**2 + (current_cy - prev_cy)**2)
+                        distance = np.sqrt((current_cx_stop - prev_cx_stop)**2 + (current_cy_stop - prev_cy_stop)**2)
                         # print(distance)
                     
                         if distance > change_threshold:
                             print("Release")
                         else :
                             print("Stop")
-                    # print(prev_cx, prev_cy, current_cx,current_cy)
-                    prev_cx, prev_cy = current_cx, current_cy      
+                            
+                    prev_cx_stop, prev_cy_stop = current_cx_stop, current_cy_stop      
 
                     # Draw bounding box and center annotation on the image
                     cv2.rectangle(color_image, (x1, y1), (x2, y2), (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
                     cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 
                                 0.7, (0, 0, 255), 2, cv2.LINE_4)
-                elif object_name == 'You' or object_name == 'Move on':
+                elif object_name == 'Move on':
+                    # Calculate current center coordinates
+                    b = box.xyxy[0].to('cpu').detach().numpy().copy()  # Move results from GPU to CPU
+                    c = box.cls
+                    x1, y1, x2, y2 = map(int, b[:4])
+                    current_cx_move, current_cy_move = int((x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
+                    
+                    prev_cx_move, prev_cy_move = current_cx_move, current_cy_move
+                    print(angle)
+                    # Draw bounding box and center annotation on the image
+                    # print(current_cx_move,current_cy_move)
+                    cv2.rectangle(color_image, (x1, y1), (x2, y2), (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
+                    cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 
+                                0.7, (0, 0, 255), 2, cv2.LINE_4)
+                elif object_name == 'You':
                     b = box.xyxy[0].to('cpu').detach().numpy().copy()  # Move results from GPU to CPU
                     c = box.cls
                     x1, y1, x2, y2 = map(int, b[:4])
@@ -147,8 +161,8 @@ while True:
         # "Move on": lambda angle: angle > 150,
     }
 
-    if conditions.get(object_name, lambda x: False)(angle):
-        print(object_name,angle)
+    # if conditions.get(object_name, lambda x: False)(angle):
+    #     print(object_name,angle)
 
     cv2.imshow("color_image", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     
