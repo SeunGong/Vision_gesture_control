@@ -3,6 +3,8 @@ import numpy as np
 import pyrealsense2 as rs
 from ultralytics import YOLO
 import time
+from collections import defaultdict
+import matplotlib.pyplot as plt
 
 # 카메라 프레임의 원하는 너비와 높이를 정의합니다.
 W, H = 640, 480
@@ -46,9 +48,7 @@ object_name = 'none'
 prev_cx, prev_cy = None, None  # Previous center coordinates
 current_cx, current_cy = None, None
 change_threshold = 15  # Threshold for detecting significant change
-frame_count = 0
-update_every_n_frames = 30  # Update every 30 frames
-angle =None
+angle =0
 
 while True:
     time1 = time.time()
@@ -83,6 +83,8 @@ while True:
                     
                         if distance > change_threshold:
                             print("Release")
+                        else :
+                            print("Stop")
                     # print(prev_cx, prev_cy, current_cx,current_cy)
                     prev_cx, prev_cy = current_cx, current_cy      
 
@@ -90,6 +92,14 @@ while True:
                     cv2.rectangle(color_image, (x1, y1), (x2, y2), (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
                     cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 
                                 0.7, (0, 0, 255), 2, cv2.LINE_4)
+                elif object_name == 'You' or object_name == 'Move on':
+                    b = box.xyxy[0].to('cpu').detach().numpy().copy()  # Move results from GPU to CPU
+                    c = box.cls
+                    x1, y1, x2, y2 = map(int, b[:4])
+                    cv2.rectangle(color_image, (x1, y1), (x2, y2), (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
+                    cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 
+                                0.7, (0, 0, 255), 2, cv2.LINE_4)
+                    print(object_name)
                 else:
                     b = box.xyxy[0].to('cpu').detach().numpy().copy()  # Move results from GPU to CPU
                     c = box.cls
@@ -98,8 +108,7 @@ while True:
                     cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 
                                 0.7, (0, 0, 255), 2, cv2.LINE_4)
                 
-                print(object_name, angle)
-                    
+                # print(object_name, angle)
                                               
     #inferencing        
     results_pose = model_pose(color_image, conf=0.8, verbose=False)
@@ -132,17 +141,17 @@ while True:
             #     # print(angle)
     
     conditions = {
-        "Forward": lambda angle: angle > 100,
-        "Backward": lambda angle: angle > 120,
-        "Turn": lambda angle: angle < 50,
+        "Forward": lambda angle: angle > 120 and angle < 150,
+        "Backward": lambda angle: angle > 90 and angle <110,
+        "Turn": lambda angle: angle>0 and angle < 60,
         # "Move on": lambda angle: angle > 150,
     }
 
-    # if conditions.get(object_name, lambda x: False)(angle):
-        # print(object_name)
+    if conditions.get(object_name, lambda x: False)(angle):
+        print(object_name,angle)
 
-        
     cv2.imshow("color_image", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
+    
     # cv2.imshow("color_image", color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     time2 = time.time()
     # print(f"FPS : {1 / (time2 - time1):.2f}")
