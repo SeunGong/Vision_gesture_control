@@ -176,7 +176,7 @@ while True:
     
     # if conditions.get(object_name, lambda x: False)(angle):
     #     print(object_name,angle)
-    ser.write(str(object_name).encode('utf-8')+b'\r\n')
+    ser.write(str(object_name).encode('utf-8'))
     cv2.imshow("color_image", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     
     # cv2.imshow("color_image", color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
