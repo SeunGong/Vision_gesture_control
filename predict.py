@@ -43,7 +43,7 @@ def calculate_angle(a,b,c):
 
 # YOLOv8 모델을 로드합니다.
 model_pose = YOLO("yolov8m-pose")
-model_hands = YOLO("bestv2.pt")
+model_hands = YOLO("bestv3.pt")
 
 #Find hands.
 object_name = 'none'
@@ -85,10 +85,10 @@ while True:
                         # print(distance)
                     
                         if distance > change_threshold:
-                            # print("Release")
+                            # print(object_name)
                             object_name='R'
                         else :
-                            # print("Stop")
+                            # print(object_name)
                             object_name='S'
                             
                     prev_cx_stop, prev_cy_stop = current_cx_stop, current_cy_stop      
@@ -106,7 +106,8 @@ while True:
                     
                     prev_cx_move, prev_cy_move = current_cx_move, current_cy_move
                     object_name='M'
-                    print(angle)
+                    # print(angle)
+                    # print(object_name)
                     # Draw bounding box and center annotation on the image
                     # print(current_cx_move,current_cy_move)
                     cv2.rectangle(color_image, (x1, y1), (x2, y2), (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
@@ -167,6 +168,10 @@ while True:
         "Turn": lambda angle: angle>0 and angle < 60,
         # "Move on": lambda angle: angle > 150,
     }
+    
+    if conditions.get(object_name, lambda x: False)(angle):
+        print(object_name,angle)
+        
     if object_name=='Forward':
         object_name='F'
     elif object_name=='Backward':
@@ -174,8 +179,6 @@ while True:
     elif object_name=='Turn':
         object_name='T'
     
-    # if conditions.get(object_name, lambda x: False)(angle):
-    #     print(object_name,angle)
     ser.write(str(object_name).encode('utf-8'))
     cv2.imshow("color_image", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     
