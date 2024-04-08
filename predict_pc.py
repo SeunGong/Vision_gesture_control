@@ -24,7 +24,7 @@ profile = pipeline.start(config)
 align_to = rs.stream.color
 align = rs.align(align_to)
 
-data_window_size=20
+data_window_size=15
 data_stream = [None] * data_window_size
 data_number=0
 data_final=None
@@ -83,7 +83,7 @@ model_pose = YOLO("yolov8m-pose")
 model_hands = YOLO("bestv3.pt")
 
 # Find hands.
-object_name = 'none'
+object_name = 'N'
 # Initialize variables outside of your main processing loop
 # Previous center coordinates
 prev_cx_stop, prev_cy_stop, prev_cx_move, prev_cy_move = None, None, None, None
@@ -107,7 +107,7 @@ while True:
     results_hands = model_hands(color_image, conf=0.8, verbose=False)
 
     if results_hands is not None:
-        object_name=None
+        object_name='N'
         for r in results_hands:
             boxes = r.boxes
             for box in boxes:
@@ -230,13 +230,13 @@ while True:
             # print(object_name,angle)
         # print(window)
     else:
-        object_name=None
-        data_final=None
+        # object_name='N'
+        data_final='N'
     
     print_count+=1
     
     if print_count>data_window_size:
-        print(data_final,angle)
+        print(data_final)
         print_count=0
     
     
