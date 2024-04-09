@@ -221,13 +221,14 @@ while True:
     }
     
     if conditions.get(object_name, lambda x: False)(angle):
-        if data_number>=data_window_size:
-            # print(data_final)
-            data_number=0
-        else:
-            data_stream[data_number]=object_name
-            update_list_and_find_mode(window, data_stream[data_number])  # Adjusted to slice up to the current index
-            data_number=data_number+1
+        # if data_number>=data_window_size:
+        #     # print(data_final)
+        #     data_number=0
+        # else:
+        #     data_stream[data_number]=object_name
+        #     update_list_and_find_mode(window, data_stream[data_number])  # Adjusted to slice up to the current index
+        #     data_number=data_number+1
+        data_final=object_name
             
             # print(object_name,angle)
         # print(window)
@@ -238,9 +239,11 @@ while True:
     print_count+=1
     
     if print_count>data_window_size and data_final != 'N':
+    # if print_count>data_window_size:
         # print(data_final)
-        ser.write(str(data_final).encode('utf-8'))
+        time2 = time.time()
         print(f"FPS : {1 / (time2 - time1):.2f}")
+        ser.write(str(data_final).encode('utf-8'))
         print_count=0
     
     
@@ -249,7 +252,6 @@ while True:
     cv2.imshow("color_image", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     
     # cv2.imshow("color_image", color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
-    time2 = time.time()
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
