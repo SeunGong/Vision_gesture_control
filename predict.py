@@ -24,7 +24,7 @@ profile = pipeline.start(config)
 align_to = rs.stream.color
 align = rs.align(align_to)
 
-data_window_size=15
+data_window_size=10
 data_stream = [None] * data_window_size
 data_number=0
 data_final=None
@@ -208,8 +208,10 @@ while True:
                         skeleton_point[0], skeleton_point[1], skeleton_point[2])
 
     conditions = {
-        "F": lambda angle: angle > 130 and angle < 170,
-        "B": lambda angle: angle > 90 and angle < 130,
+        # "F": lambda angle: angle > 130 and angle < 170,
+        # "B": lambda angle: angle > 90 and angle < 130,
+        "F": lambda angle: angle > 0 and angle < 180,
+        "B": lambda angle: angle > 0 and angle < 180,
         "T": lambda angle: angle > 0 and angle < 50,
         "Y": lambda angle: angle > 0 and angle < 180,
         "S": lambda angle: angle > 0 and angle < 180,
