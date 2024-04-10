@@ -16,13 +16,13 @@ pipeline.start(config)
 window_name = 'RealSense Image'
 
 # Check file exist
-save_path = "you"
+save_path = "pointing_another"
 if not os.path.exists(save_path):
     os.makedirs(save_path)
     
 try:
     # Capture and save images
-    for i in range(50):
+    for i in range(100):
 
         frames = pipeline.wait_for_frames()
         color_frame = frames.get_color_frame()
@@ -30,7 +30,7 @@ try:
             color_image = np.asanyarray(color_frame.get_data())
 
             # Save image
-            cv2.imwrite(f"{save_path}/{save_path}_right{i:03d}.jpg", color_image)
+            cv2.imwrite(f"{save_path}/{save_path}_p1_circle_left{i:03d}.jpg", color_image)
 
             # Display image 
             text=str(i)
