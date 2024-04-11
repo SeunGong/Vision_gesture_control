@@ -18,7 +18,7 @@ window_name = 'RealSense Image'
 # 사용자 입력에 따라 순차적으로 변경될 설정들
 actions = ['stop','you', 'turn', 'forward', 'backward',  'pointing']
 directions = ['_left', '_right']
-user='p2'
+user='p5'
 current_action_index = 0
 current_direction_index = 0
 
