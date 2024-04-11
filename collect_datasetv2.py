@@ -16,8 +16,9 @@ pipeline.start(config)
 window_name = 'RealSense Image'
 
 # 사용자 입력에 따라 순차적으로 변경될 설정들
-actions = ['you', 'stop', 'forward', 'backward', 'turn', 'pointing']
-directions = ['_p1_circle_left', '_p1_circle_right']
+actions = ['you','you_circle', 'stop', 'forward', 'backward', 'turn','turn_circle', 'pointing']
+directions = ['_left', '_right']
+user='p1'
 current_action_index = 0
 current_direction_index = 0
 
@@ -33,14 +34,14 @@ try:
             os.makedirs(save_path)
 
         # 100장 이미지 캡처 및 저장
-        for i in range(100):
+        for i in range(10):
             frames = pipeline.wait_for_frames()
             color_frame = frames.get_color_frame()
             if color_frame:
                 color_image = np.asanyarray(color_frame.get_data())
 
                 # 이미지 저장
-                filename = f"{save_path}_{current_direction}{i:03d}.jpg"
+                filename = f"{save_path}/{save_path}_{current_direction}_{user}_{i:03d}.jpg"
                 cv2.imwrite(filename, color_image)
 
                 # 이미지 디스플레이
@@ -64,6 +65,7 @@ try:
                 break
 
         # 사용자 입력 대기 ('Enter' 키를 누르면 다음으로 넘어감)
+        print("Next : "f"{actions[current_action_index]}{directions[current_direction_index]}")
         input("다음 설정으로 진행하려면 Enter를 누르세요...")
 
 finally:
