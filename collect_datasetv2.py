@@ -16,7 +16,7 @@ pipeline.start(config)
 window_name = 'RealSense Image'
 
 # 사용자 입력에 따라 순차적으로 변경될 설정들
-actions = ['you','you_circle', 'stop', 'forward', 'backward', 'turn','turn_circle', 'pointing']
+actions = ['stop','you','you_circle', 'turn','turn_circle', 'forward', 'backward',  'pointing']
 directions = ['_left', '_right']
 user='p1'
 current_action_index = 0
