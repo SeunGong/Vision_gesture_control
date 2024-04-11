@@ -33,8 +33,8 @@ try:
             # cv2.imwrite(f"{save_path}/{save_path}_p1_circle_left{i:03d}.jpg", color_image)
 
             # Display image 
-            text=str(i)
-            cv2.putText(color_image,text, (50,50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 2, cv2.LINE_AA)
+            # text=str(i)
+            # cv2.putText(color_image,text, (50,50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 2, cv2.LINE_AA)
             cv2.imshow(window_name, color_image)
             # Exit if 'q' is pressed 
         if cv2.waitKey(1) == ord('q'):
