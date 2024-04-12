@@ -165,6 +165,7 @@ while True:
     # Find pose.
     pointcount = 6 #number of skeleton_point
     distance_whl,distance_whr=None,None
+    shoulder_L,shoulder_R=None,None
     hands=None
     
     skeleton_point = np.zeros((pointcount, 2))
@@ -176,6 +177,7 @@ while True:
                 if k.xy[0].size(0) > 6:  # Ensure there are enough elements
                     # Right shoulder
                     skeleton_point[0] = k.xy[0][6].cpu().numpy()
+                    shoulder_R= int(skeleton_point[0][0])
                 if k.xy[0].size(0) > 8:  # Ensure there are enough elements
                     skeleton_point[1] = k.xy[0][8].cpu().numpy()  # Right elbow
                 if k.xy[0].size(0) > 10:  # Ensure there are enough elements
@@ -185,13 +187,14 @@ while True:
                     if box_cx is not None:
                         distance_whr = np.sqrt((box_cx - int(skeleton_point[2][0]))**2 + (box_cy - int(skeleton_point[2][1]))**2) #distance between right winkle and hands
                         # print(distance_whr)
-                if k.xy[0].size(0) > 5:  # Ensure there are enough elements
+                if k.xy[0].size(0) > 5: 
                     skeleton_point[3] = k.xy[0][5].cpu().numpy()
+                    shoulder_L= int(skeleton_point[3][0])
                     
-                if k.xy[0].size(0) > 7:  # Ensure there are enough elements
-                    skeleton_point[4] = k.xy[0][7].cpu().numpy()  # Right elbow
+                if k.xy[0].size(0) > 7:  
+                    skeleton_point[4] = k.xy[0][7].cpu().numpy()
                     
-                if k.xy[0].size(0) > 9:  # Ensure there are enough elements
+                if k.xy[0].size(0) > 9:  
                     skeleton_point[5] = k.xy[0][9].cpu().numpy()
                     
                     if box_cx is not None:
@@ -224,7 +227,12 @@ while True:
         # "Move on": lambda angle: angle > 150,
     }
     if hands == 'RIGHT':
-        
+        if object_name== 'P' and distance_whr is not None:
+            if box_cx>shoulder_R :
+                data_final='PR'
+            else:
+                data_final='PL'
+
         if conditions.get(object_name, lambda x: False)(angle):
             # if data_number>=data_window_size:
             #     # print(data_final)
@@ -239,7 +247,12 @@ while True:
             data_final='N'
             
     elif hands == 'LEFT':
-        
+        if object_name== 'P' and distance_whr is not None:
+            if box_cx>shoulder_L :
+                data_final='PR'
+        else:
+            data_final='PL'
+
         if conditions.get(object_name, lambda x: False)(angle):
             data_final=object_name
         else:
