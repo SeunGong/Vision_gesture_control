@@ -24,7 +24,7 @@ profile = pipeline.start(config)
 align_to = rs.stream.color
 align = rs.align(align_to)
 
-data_window_size=15
+data_window_size=10
 data_stream = [None] * data_window_size
 data_number=0
 data_final=None
@@ -80,7 +80,7 @@ def calculate_angle(a, b, c):
 
 # YOLOv8 모델을 로드합니다.
 model_pose = YOLO("yolov8m-pose")
-model_hands = YOLO("bestv3.pt")
+model_hands = YOLO("240411.pt")
 
 # Find hands.
 object_name = 'N'
@@ -114,7 +114,7 @@ while True:
                 class_index = box.cls  # Get the class index of the object
                 # Use the index to get the object's name
                 object_name = model_hands.names[int(class_index)]
-                if object_name == 'Stop':
+                if object_name == 'STOP':
                     # Calculate current center coordinates
                     # Move results from GPU to CPU
                     b = box.xyxy[0].to('cpu').detach().numpy().copy()
@@ -141,7 +141,7 @@ while True:
                                   (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
                     cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX,
                                 0.7, (0, 0, 255), 2, cv2.LINE_4)
-                elif object_name == 'Move on':
+                elif object_name == 'POINTING':
                     b = box.xyxy[0].to('cpu').detach().numpy().copy()
                     c = box.cls
                     x1, y1, x2, y2 = map(int, b[:4])
@@ -149,12 +149,12 @@ while True:
                         (x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
 
                     prev_cx_move, prev_cy_move = current_cx_move, current_cy_move
-                    object_name = 'M'
+                    object_name = 'P'
                     cv2.rectangle(color_image, (x1, y1), (x2, y2),
                                   (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
                     cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX,
                                 0.7, (0, 0, 255), 2, cv2.LINE_4)
-                elif object_name == 'You':
+                elif object_name == 'YOU':
                     # Move results from GPU to CPU
                     b = box.xyxy[0].to('cpu').detach().numpy().copy()
                     c = box.cls
@@ -174,11 +174,11 @@ while True:
                                   (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
                     cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX,
                                 0.7, (0, 0, 255), 2, cv2.LINE_4)
-                    if object_name == 'Forward':
+                    if object_name == 'FORWARD':
                         object_name='F'
-                    elif object_name=='Backward':
+                    elif object_name=='BACKWARD':
                         object_name='B'
-                    elif object_name=='Turn':
+                    elif object_name=='TURN':
                         object_name='T'
 
 
@@ -208,8 +208,8 @@ while True:
                         skeleton_point[0], skeleton_point[1], skeleton_point[2])
 
     conditions = {
-        "F": lambda angle: angle > 130 and angle < 170,
-        "B": lambda angle: angle > 90 and angle < 130,
+        "F": lambda angle: angle > 0 and angle < 180,
+        "B": lambda angle: angle > 0 and angle < 180,
         "T": lambda angle: angle > 0 and angle < 50,
         "Y": lambda angle: angle > 0 and angle < 180,
         "S": lambda angle: angle > 0 and angle < 180,
@@ -219,24 +219,29 @@ while True:
     }
     
     if conditions.get(object_name, lambda x: False)(angle):
-        if data_number>=data_window_size:
-            # print(data_final)
-            data_number=0
-        else:
-            data_stream[data_number]=object_name
-            update_list_and_find_mode(window, data_stream[data_number])  # Adjusted to slice up to the current index
-            data_number=data_number+1
+        # if data_number>=data_window_size:
+        #     # print(data_final)
+        #     data_number=0
+        # else:
+        #     data_stream[data_number]=object_name
+        #     update_list_and_find_mode(window, data_stream[data_number])  # Adjusted to slice up to the current index
+        #     data_number=data_number+1
             
             # print(object_name,angle)
         # print(window)
+        data_final=object_name
     else:
         # object_name='N'
         data_final='N'
     
     print_count+=1
     
-    if print_count>data_window_size:
+    if print_count>data_window_size and data_final != 'N':
+    # if print_count>data_window_size:
         print(data_final)
+    # time2 = time.time()
+    # print(f"FPS : {1 / (time2 - time1):.2f}")
+    # ser.write(str(data_final).encode('utf-8'))
         print_count=0
     
     
@@ -245,7 +250,7 @@ while True:
     cv2.imshow("color_image", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     
     # cv2.imshow("color_image", color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
-    time2 = time.time()
+    # time2 = time.time()
     # print(f"FPS : {1 / (time2 - time1):.2f}")
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
