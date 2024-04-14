@@ -2,7 +2,7 @@ import os
 import shutil
 
 # 원본 폴더와 대상 폴더 경로 설정
-source_folder = '../new_dataset/p5'
+source_folder = '../new_dataset/p8'
 target_folder = os.path.join(source_folder, 'dataset')  # Simplified path
 
 # 대상 폴더가 없으면 생성
