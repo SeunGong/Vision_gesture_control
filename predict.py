@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from collections import deque, Counter
 
 # Serial setting
-ser = serial.Serial('/dev/ttyUSB0',115200)
+# ser = serial.Serial('/dev/ttyUSB0',115200)
 # 카메라 프레임의 원하는 너비와 높이를 정의합니다.
 W, H = 640, 480
 
@@ -80,7 +80,7 @@ def calculate_angle(a, b, c):
 
 # YOLOv8 모델을 로드합니다.
 model_pose = YOLO("yolov8m-pose")
-model_hands = YOLO("bestv3.pt")
+model_hands = YOLO("240411.pt")
 
 # Find hands.
 object_name = 'N'
@@ -88,6 +88,9 @@ object_name = 'N'
 # Previous center coordinates
 prev_cx_stop, prev_cy_stop, prev_cx_move, prev_cy_move = None, None, None, None
 current_cx_stop, current_cy_stop, current_cx_move, current_cy_move = None, None, None, None
+
+box_cx,box_cy = None,None
+
 change_threshold = 15  # Threshold for detecting significant change
 angle = 0
 
@@ -111,18 +114,19 @@ while True:
         for r in results_hands:
             boxes = r.boxes
             for box in boxes:
-                class_index = box.cls  # Get the class index of the object
+                # class_index = box.cls  # Get the class index of the object
                 # Use the index to get the object's name
-                object_name = model_hands.names[int(class_index)]
-                if object_name == 'Stop':
-                    # Calculate current center coordinates
-                    # Move results from GPU to CPU
-                    b = box.xyxy[0].to('cpu').detach().numpy().copy()
-                    c = box.cls
-                    x1, y1, x2, y2 = map(int, b[:4])
+                b = box.xyxy[0].to('cpu').detach().numpy().copy()
+                c = box.cls
+                x1, y1, x2, y2 = map(int, b[:4])
+                box_cx,box_cy=int((x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1) 
+                
+                object_name = model_hands.names[int(c)]
+                
+                if object_name == 'STOP':
                     current_cx_stop, current_cy_stop = int(
                         (x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
-
+                    
                     if prev_cx_stop is not None and prev_cy_stop is not None:
                     # Calculate Euclidean distance between previous and current center
                         distance = np.sqrt(
@@ -135,61 +139,35 @@ while True:
                             object_name = 'S'
 
                     prev_cx_stop, prev_cy_stop = current_cx_stop, current_cy_stop
-
-                    # Draw bounding box and center annotation on the image
-                    cv2.rectangle(color_image, (x1, y1), (x2, y2),
-                                  (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
-                    cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX,
-                                0.7, (0, 0, 255), 2, cv2.LINE_4)
-                elif object_name == 'Move on':
-                    b = box.xyxy[0].to('cpu').detach().numpy().copy()
-                    c = box.cls
-                    x1, y1, x2, y2 = map(int, b[:4])
-                    current_cx_move, current_cy_move = int(
-                        (x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
-
-                    prev_cx_move, prev_cy_move = current_cx_move, current_cy_move
-                    object_name = 'M'
-                    cv2.rectangle(color_image, (x1, y1), (x2, y2),
-                                  (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
-                    cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX,
-                                0.7, (0, 0, 255), 2, cv2.LINE_4)
-                elif object_name == 'You':
-                    # Move results from GPU to CPU
-                    b = box.xyxy[0].to('cpu').detach().numpy().copy()
-                    c = box.cls
-                    x1, y1, x2, y2 = map(int, b[:4])
-                    cv2.rectangle(color_image, (x1, y1), (x2, y2),
-                                  (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
-                    cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX,
-                                0.7, (0, 0, 255), 2, cv2.LINE_4)
-                    object_name = 'Y'
-                    
+                
                 else:
-                    # Move results from GPU to CPU
-                    b = box.xyxy[0].to('cpu').detach().numpy().copy()
-                    c = box.cls
-                    x1, y1, x2, y2 = map(int, b[:4])
-                    cv2.rectangle(color_image, (x1, y1), (x2, y2),
-                                  (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
-                    cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX,
-                                0.7, (0, 0, 255), 2, cv2.LINE_4)
-                    if object_name == 'Forward':
+                    if object_name == 'FORWARD':
                         object_name='F'
-                    elif object_name=='Backward':
+                    elif object_name=='BACKWARD':
                         object_name='B'
-                    elif object_name=='Turn':
+                    elif object_name=='TURN':
                         object_name='T'
+                    elif object_name == 'YOU':
+                        object_name = 'Y'
+                    elif object_name == 'POINTING':
+                        object_name = 'P'
+                        
+                #Drawing bounding box      
+                cv2.rectangle(color_image, (x1, y1), (x2, y2),
+                (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
+                cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX,
+                0.7, (0, 0, 255), 2, cv2.LINE_4)
 
-
-                # print(object_name)
-    # print(object_name,angle)
-    # inferencing
+    #Predict pose
     results_pose = model_pose(color_image, conf=0.8, verbose=False)
 
     pose_color_image = results_pose[0].plot()
     # Find pose.
-    pointcount = 6
+    pointcount = 6 #number of skeleton_point
+    distance_whl,distance_whr=None,None
+    shoulder_L,shoulder_R=None,None
+    hands=None
+    
     skeleton_point = np.zeros((pointcount, 2))
     if results_pose is not None:
         for r in results_pose:
@@ -199,57 +177,103 @@ while True:
                 if k.xy[0].size(0) > 6:  # Ensure there are enough elements
                     # Right shoulder
                     skeleton_point[0] = k.xy[0][6].cpu().numpy()
+                    shoulder_R= int(skeleton_point[0][0])
                 if k.xy[0].size(0) > 8:  # Ensure there are enough elements
                     skeleton_point[1] = k.xy[0][8].cpu().numpy()  # Right elbow
                 if k.xy[0].size(0) > 10:  # Ensure there are enough elements
                     # Right wrist
                     skeleton_point[2] = k.xy[0][10].cpu().numpy()
-                    angle = calculate_angle(
+                    
+                    if box_cx is not None:
+                        distance_whr = np.sqrt((box_cx - int(skeleton_point[2][0]))**2 + (box_cy - int(skeleton_point[2][1]))**2) #distance between right winkle and hands
+                        # print(distance_whr)
+                if k.xy[0].size(0) > 5: 
+                    skeleton_point[3] = k.xy[0][5].cpu().numpy()
+                    shoulder_L= int(skeleton_point[3][0])
+                    
+                if k.xy[0].size(0) > 7:  
+                    skeleton_point[4] = k.xy[0][7].cpu().numpy()
+                    
+                if k.xy[0].size(0) > 9:  
+                    skeleton_point[5] = k.xy[0][9].cpu().numpy()
+                    
+                    if box_cx is not None:
+                        distance_whl = np.sqrt((box_cx - int(skeleton_point[5][0]))**2 + (box_cy - int(skeleton_point[5][1]))**2) #distance between left winkle and hands
+                        # print(distance_whl)
+                        box_cx,box_cy=None,None
+                        
+                #Distinguish which hands       
+                if distance_whl is not None and distance_whr is not None: 
+                    if(distance_whl>distance_whr):
+                        hands='RIGHT'
+                        angle = calculate_angle(
                         skeleton_point[0], skeleton_point[1], skeleton_point[2])
+                    elif(distance_whl<distance_whr):
+                        hands='LEFT'
+                        angle = calculate_angle(
+                        skeleton_point[3], skeleton_point[4], skeleton_point[5])
+                    # print(hands)
 
     conditions = {
         # "F": lambda angle: angle > 130 and angle < 170,
         # "B": lambda angle: angle > 90 and angle < 130,
         "F": lambda angle: angle > 0 and angle < 180,
         "B": lambda angle: angle > 0 and angle < 180,
-        "T": lambda angle: angle > 0 and angle < 50,
+        "T": lambda angle: angle > 0 and angle < 60,
         "Y": lambda angle: angle > 0 and angle < 180,
         "S": lambda angle: angle > 0 and angle < 180,
         "R": lambda angle: angle > 0 and angle < 180,
-        "M": lambda angle: angle > 0 and angle < 180,
+        "P": lambda angle: angle > 0 and angle < 180,
         # "Move on": lambda angle: angle > 150,
     }
-    
-    if conditions.get(object_name, lambda x: False)(angle):
-        # if data_number>=data_window_size:
-        #     # print(data_final)
-        #     data_number=0
-        # else:
-        #     data_stream[data_number]=object_name
-        #     update_list_and_find_mode(window, data_stream[data_number])  # Adjusted to slice up to the current index
-        #     data_number=data_number+1
-        data_final=object_name
+    if hands == 'RIGHT':
+        if object_name== 'P' and distance_whr is not None:
+            if box_cx>shoulder_R :
+                data_final='PR'
+            else:
+                data_final='PL'
+
+        if conditions.get(object_name, lambda x: False)(angle):
+            # if data_number>=data_window_size:
+            #     # print(data_final)
+            #     data_number=0
+            # else:
+            #     data_stream[data_number]=object_name
+            #     update_list_and_find_mode(window, data_stream[data_number])  # Adjusted to slice up to the current index
+            #     data_number=data_number+1
+            data_final=object_name
+        else:
+            # object_name='N'
+            data_final='N'
             
-            # print(object_name,angle)
-        # print(window)
-    else:
-        # object_name='N'
-        data_final='N'
+    elif hands == 'LEFT':
+        if object_name== 'P' and distance_whr is not None:
+            if box_cx>shoulder_L :
+                data_final='PR'
+        else:
+            data_final='PL'
+
+        if conditions.get(object_name, lambda x: False)(angle):
+            data_final=object_name
+        else:
+            data_final='N'
     
+    # print(hands,angle,object_name)
     print_count+=1
     
     if print_count>data_window_size and data_final != 'N':
     # if print_count>data_window_size:
-        # print(data_final)
-        time2 = time.time()
-        print(f"FPS : {1 / (time2 - time1):.2f}")
-        ser.write(str(data_final).encode('utf-8'))
+        print(data_final,angle)
+        data_final='N'
+        # time2 = time.time()
+        # print(f"FPS : {1 / (time2 - time1):.2f}")
+        # ser.write(str(data_final).encode('utf-8'))
         print_count=0
     
     
     # print(object_name)
     # ser.write(str(object_name).encode('utf-8'))
-    cv2.imshow("color_image", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
+    cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     
     # cv2.imshow("color_image", color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
 
