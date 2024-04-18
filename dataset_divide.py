@@ -3,7 +3,7 @@ import shutil
 from sklearn.model_selection import train_test_split
 
 # 이미지 데이터가 있는 소스 폴더
-source_folder = r'C:\Users\User\Desktop\new_dataset\p5\dataset'
+source_folder = r'C:\Users\User\Desktop\new_dataset\p8\dataset'
 
 # 분류할 대상 폴더 경로 생성
 train_folder = os.path.join(source_folder, 'train')
