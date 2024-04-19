@@ -80,7 +80,7 @@ def calculate_angle(a, b, c):
 
 # YOLOv8 모델을 로드합니다.
 model_pose = YOLO("yolov8m-pose")
-model_hands = YOLO("240411.pt")
+model_hands = YOLO("240414.pt")
 
 # Find hands.
 object_name = 'N'
@@ -90,7 +90,7 @@ prev_cx_stop, prev_cy_stop, prev_cx_move, prev_cy_move = None, None, None, None
 current_cx_stop, current_cy_stop, current_cx_move, current_cy_move = None, None, None, None
 
 box_cx,box_cy = None,None
-
+pbox_cx,pbox_cy = None, None
 change_threshold = 15  # Threshold for detecting significant change
 angle = 0
 
@@ -134,7 +134,7 @@ while True:
                         # print(distance)
 
                         if distance > change_threshold:
-                            object_name = 'R'
+                            object_name = 'W'
                         else:
                             object_name = 'S'
 
@@ -151,6 +151,7 @@ while True:
                         object_name = 'Y'
                     elif object_name == 'POINTING':
                         object_name = 'P'
+                        pbox_cx,pbox_cy=box_cx,box_cy
                         
                 #Drawing bounding box      
                 cv2.rectangle(color_image, (x1, y1), (x2, y2),
@@ -217,53 +218,48 @@ while True:
     conditions = {
         # "F": lambda angle: angle > 130 and angle < 170,
         # "B": lambda angle: angle > 90 and angle < 130,
-        "F": lambda angle: angle > 0 and angle < 180,
-        "B": lambda angle: angle > 0 and angle < 180,
+        "F": lambda angle: angle > 80 and angle < 180,
+        "B": lambda angle: angle > 80 and angle < 180,
         "T": lambda angle: angle > 0 and angle < 60,
         "Y": lambda angle: angle > 0 and angle < 180,
         "S": lambda angle: angle > 0 and angle < 180,
-        "R": lambda angle: angle > 0 and angle < 180,
-        "P": lambda angle: angle > 0 and angle < 180,
+        "W": lambda angle: angle > 0 and angle < 180,
+        "P": lambda angle: angle > 150 and angle < 180,
         # "Move on": lambda angle: angle > 150,
     }
+
+    if conditions.get(object_name, lambda x: False)(angle):
+        data_final=object_name
+    else:
+        data_final='N'
+    
+
     if hands == 'RIGHT':
-        if object_name== 'P' and distance_whr is not None:
-            if box_cx>shoulder_R :
+        if object_name== 'P' and distance_whr is not None and shoulder_R is not None and pbox_cx is not None:
+            if pbox_cx>shoulder_R :
                 data_final='PR'
             else:
                 data_final='PL'
-
-        if conditions.get(object_name, lambda x: False)(angle):
-            # if data_number>=data_window_size:
-            #     # print(data_final)
-            #     data_number=0
-            # else:
-            #     data_stream[data_number]=object_name
-            #     update_list_and_find_mode(window, data_stream[data_number])  # Adjusted to slice up to the current index
-            #     data_number=data_number+1
-            data_final=object_name
-        else:
-            # object_name='N'
-            data_final='N'
+        # else:
+        #     data_final='N'
             
     elif hands == 'LEFT':
-        if object_name== 'P' and distance_whr is not None:
-            if box_cx>shoulder_L :
+        if object_name== 'P' and distance_whl is not None  and shoulder_L is not None and pbox_cx is not None:
+            if  pbox_cx>shoulder_L :
                 data_final='PR'
-        else:
-            data_final='PL'
-
-        if conditions.get(object_name, lambda x: False)(angle):
-            data_final=object_name
-        else:
-            data_final='N'
-    
-    # print(hands,angle,object_name)
+            else:
+                data_final='PL'
+        # else:
+        #     data_final='N'
+            
+    pbox_cx=None
     print_count+=1
     
     if print_count>data_window_size and data_final != 'N':
     # if print_count>data_window_size:
-        print(data_final,angle)
+        # print(data_final,angle)
+        print(data_final)
+
         data_final='N'
         # time2 = time.time()
         # print(f"FPS : {1 / (time2 - time1):.2f}")

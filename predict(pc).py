@@ -80,7 +80,7 @@ def calculate_angle(a, b, c):
 
 # YOLOv8 모델을 로드합니다.
 model_pose = YOLO("yolov8m-pose")
-model_hands = YOLO("240411.pt")
+model_hands = YOLO("240414.pt")
 
 # Find hands.
 object_name = 'N'
@@ -130,7 +130,7 @@ while True:
                         # print(distance)
 
                         if distance > change_threshold:
-                            object_name = 'R'
+                            object_name = 'W'
                         else:
                             object_name = 'S'
 
@@ -208,13 +208,13 @@ while True:
                         skeleton_point[0], skeleton_point[1], skeleton_point[2])
 
     conditions = {
+        "S": lambda angle: angle > 0 and angle < 180,
         "F": lambda angle: angle > 0 and angle < 180,
         "B": lambda angle: angle > 0 and angle < 180,
         "T": lambda angle: angle > 0 and angle < 50,
+        "P": lambda angle: angle > 0 and angle < 180,
         "Y": lambda angle: angle > 0 and angle < 180,
-        "S": lambda angle: angle > 0 and angle < 180,
-        "R": lambda angle: angle > 0 and angle < 180,
-        "M": lambda angle: angle > 0 and angle < 180,
+        "W": lambda angle: angle > 0 and angle < 180,
         # "Move on": lambda angle: angle > 150,
     }
     
@@ -238,7 +238,7 @@ while True:
     
     if print_count>data_window_size and data_final != 'N':
     # if print_count>data_window_size:
-        print(data_final)
+        print(data_final,angle)
     # time2 = time.time()
     # print(f"FPS : {1 / (time2 - time1):.2f}")
     # ser.write(str(data_final).encode('utf-8'))
