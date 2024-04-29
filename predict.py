@@ -66,8 +66,7 @@ def calculate_angle(a, b, c):
     c = np.array(c)  # 세번째
 
     # 라디안을 계산하고 실제 각도로 변경한다.
-    radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - \
-                         np.arctan2(a[1]-b[1], a[0]-b[0])
+    radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0])
     angle = np.abs(radians*180.0/np.pi)
 
     # 180도가 넘으면 360에서 뺀 값을 계산한다.
