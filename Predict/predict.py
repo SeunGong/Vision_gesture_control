@@ -248,10 +248,11 @@ while True:
     # pbox_cx = None
     count_print += 1
 
-    if count_print > 10 and gesture != 'N':
+    # if count_print > 10 and gesture != 'N':
+    if gesture != 'N':
         # print(gesture, angle_arm)
         print(gesture)
-        count_print = 0
+        # count_print = 0
         gesture = 'N'
         # time2 = time.time()
         # print(f"FPS : {1 / (time2 - time1):.2f}")
