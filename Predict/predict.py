@@ -246,18 +246,18 @@ while True:
     #             gesture = 'L'
 
     # pbox_cx = None
-    count_print += 1
+    # count_print += 1
 
     # if count_print > 10 and gesture != 'N':
     if gesture != 'N':
         # print(gesture, angle_arm)
         print(gesture)
-        # count_print = 0
+        ser.write(str(gesture).encode('utf-8')) #To do
         gesture = 'N'
+        # count_print = 0
         # time2 = time.time()
         # print(f"FPS : {1 / (time2 - time1):.2f}")
 
-    ser.write(str(gesture).encode('utf-8')) #To do
     cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
