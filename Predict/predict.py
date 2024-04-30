@@ -50,7 +50,7 @@ def calculate_angle_arm(a, b, c):
 
 
 # YOLOv8 모델을 로드합니다.
-model_pose = YOLO("yolov8m-coordinate_pose")
+model_pose = YOLO("yolov8m-pose")
 model_hands = YOLO("240430.pt")
 
 # Find hands.
@@ -62,9 +62,12 @@ pbox_cx, pbox_cy = None, None  # pointing box
 # Previous center coordinates
 pre_cx_stop, pre_cy_stop, pre_cx_pointing, pre_cy_pointing = None, None, None, None
 cur_cx_stop, cur_cy_stop, cur_cx_pointing, cur_cy_pointing = None, None, None, None
-threshold_waving = 15  # Threshold for detecting significant change
+threshold_waving = 30  # Threshold for detecting significant change
 
 angle_arm = 0
+
+count_gesture=0
+gesture_pre='N'
 
 while True:
     # time1 = time.time() #for measure FPS
@@ -100,19 +103,19 @@ while True:
                 if hands == 'STOP':
                     cur_cx_stop, cur_cy_stop = int(
                         (x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
+                    
+                    hands = 'S'
 
                     if pre_cx_stop is not None and pre_cy_stop is not None:
                         # Calculate Euclidean distance between previous and current center
                         distance = np.sqrt(
                             (cur_cx_stop - pre_cx_stop)**2 + (cur_cy_stop - pre_cy_stop)**2)
                         # print(distance)
-
                         if distance > threshold_waving:
                             hands = 'W'
-                        else:
-                            hands = 'S'
+                        distance=0
 
-                        pre_cx_stop, pre_cy_stop = cur_cx_stop, cur_cy_stop
+                    pre_cx_stop, pre_cy_stop = cur_cx_stop, cur_cy_stop
 
                 elif hands == 'FORWARD':
                     hands = 'F'
@@ -198,18 +201,33 @@ while True:
     }
 
     if conditions.get(hands, lambda x: False)(angle_arm):
-        gesture = hands
-        if gesture =='P' and pbox_cx is not None:
+        gesture_this = hands
+        
+        # if gesture =='T':
+            # count
+        if gesture_this =='P' and pbox_cx is not None:
             if active_hands == 'RIGHT'and distance_whr is not None and value_srx is not None: 
                 if pbox_cx > value_srx:
-                    gesture = 'R'
+                    gesture_this = 'R'
                 else:
-                    gesture = 'L'
-            if active_hands == 'LEFT'and distance_whl is not None and value_slx is not None:
+                    gesture_this = 'L'
+            elif active_hands == 'LEFT'and distance_whl is not None and value_slx is not None:
                 if pbox_cx > value_slx:
-                    gesture = 'R'
+                    gesture_this = 'R'
                 else:
-                    gesture = 'L'
+                    gesture_this = 'L'
+
+        # print("this: ",gesture_this,"pre: ",gesture_pre,"count: ",count_gesture)
+
+        if(gesture_this==gesture_pre):
+            count_gesture+=1
+            if(count_gesture>3):
+                count_gesture=0
+                gesture=gesture_this
+                # print('gesture: ',gesture)
+        else:
+            gesture_pre  = gesture_this
+
     else:
         gesture = 'N'
 
@@ -231,7 +249,8 @@ while True:
     count_print += 1
 
     if count_print > 10 and gesture != 'N':
-        print(gesture, angle_arm)
+        # print(gesture, angle_arm)
+        print(gesture)
         count_print = 0
         gesture = 'N'
         # time2 = time.time()
