@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from collections import deque, Counter
 
 # Serial setting
-# ser = serial.Serial('/dev/ttyUSB0',115200)
+ser = serial.Serial('/dev/ttyUSB0',115200)
 # 카메라 프레임의 원하는 너비와 높이를 정의합니다.
 W, H = 640, 480
 
@@ -237,18 +237,18 @@ while True:
     if hands == 'RIGHT':
         if object_name== 'P' and distance_whr is not None and shoulder_R is not None and pbox_cx is not None:
             if pbox_cx>shoulder_R :
-                data_final='PR'
+                data_final='R'
             else:
-                data_final='PL'
+                data_final='L'
         # else:
         #     data_final='N'
             
     elif hands == 'LEFT':
         if object_name== 'P' and distance_whl is not None  and shoulder_L is not None and pbox_cx is not None:
             if  pbox_cx>shoulder_L :
-                data_final='PR'
+                data_final='R'
             else:
-                data_final='PL'
+                data_final='L'
         # else:
         #     data_final='N'
             
@@ -257,8 +257,8 @@ while True:
     
     if print_count>data_window_size and data_final != 'N':
     # if print_count>data_window_size:
-        # print(data_final,angle)
-        print(data_final)
+        print(data_final,angle)
+        # print(data_final)
 
         data_final='N'
         # time2 = time.time()
@@ -268,7 +268,7 @@ while True:
     
     
     # print(object_name)
-    # ser.write(str(object_name).encode('utf-8'))
+    ser.write(str(data_final).encode('utf-8'))
     cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     
     # cv2.imshow("color_image", color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
