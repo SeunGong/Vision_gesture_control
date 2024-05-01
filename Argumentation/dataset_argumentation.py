@@ -10,11 +10,11 @@ transform = A.Compose([
 ])
 
 # Directories setup
-folder = 'train'
-image_dir = r"C:\Users\eofeh\Desktop\Model\datasets_copy\%s\images" %(folder)
-label_dir = r"C:\Users\eofeh\Desktop\Model\datasets_copy\%s\labels" %(folder)
-augmented_image_dir = r"C:\Users\eofeh\Desktop\Model\datasets_copy\%s\%s_augmented_images" %(folder, folder)
-augmented_label_dir = r"C:\Users\eofeh\Desktop\Model\datasets_copy\%s\%s_augmented_labels" %(folder, folder)
+folder = 'valid'
+image_dir = r"C:\Users\eofeh\Desktop\Model\1floor\%s\images" %(folder)
+label_dir = r"C:\Users\eofeh\Desktop\Model\1floor\%s\labels" %(folder)
+augmented_image_dir = r"C:\Users\eofeh\Desktop\Model\1floor\%s\%s_augmented_images" %(folder, folder)
+augmented_label_dir = r"C:\Users\eofeh\Desktop\Model\1floor\%s\%s_augmented_labels" %(folder, folder)
 
 os.makedirs(augmented_image_dir, exist_ok=True)
 os.makedirs(augmented_label_dir, exist_ok=True)
