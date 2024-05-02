@@ -1,0 +1,59 @@
+import numpy as np
+import seaborn as sns
+import supervision as sv
+import matplotlib.pyplot as plt
+
+from ultralytics import YOLO
+
+
+dataset = sv.DetectionDataset.from_yolo(r'C:\Users\eofeh\Desktop\Model(dataset)\test dataset(images)',r'C:\Users\eofeh\Desktop\Model(dataset)\test dataset(labels)',r'C:\Users\eofeh\Desktop\Model\1.YOLOv8\yolo-combine\Train\data.yaml')
+
+model = YOLO(r'C:\Users\eofeh\Desktop\Model\1.YOLOv8\yolo-combine\Predict\240502.pt')
+def callback(image: np.ndarray) -> sv.Detections:
+    result = model(image, conf=0.8, verbose=False)[0]
+    return sv.Detections.from_ultralytics(result)
+
+confusion_matrix = sv.ConfusionMatrix.benchmark(
+   dataset = dataset,
+   callback = callback
+)
+
+cm=confusion_matrix.matrix
+
+# 새로운 순서
+new_order = [0, 3, 4, 2, 5, 1]
+
+# 행렬의 행 재배열
+reordered_matrix = cm[new_order, :][:, new_order]
+
+# 결과 출력
+print(reordered_matrix)
+
+# 각 열의 합으로 나누어 정규화
+T_1_normalized_by_columns = reordered_matrix / reordered_matrix.sum(axis=0, keepdims=True)
+T_1_normalized_by_columns = np.around(T_1_normalized_by_columns, decimals=2)
+
+print("Normalized Confusion Matrix (by columns):")
+# 출력 포맷을 대괄호로 묶고 소수점 두 자리까지 표시
+for row in T_1_normalized_by_columns:
+    formatted_row = "[" + ", ".join(format(x, ".2f") for x in row) + "]"
+    print(formatted_row)
+
+fig, ax = plt.subplots( figsize=(6,6) )
+emotionlabels = ['Stop/Waving', 'Forward', 'Backward', 'Turn', 'Pointing','You']
+sns.heatmap(T_1_normalized_by_columns,
+            cmap = 'Blues',
+            annot = True,   # 실제 값을 표시한다
+            linewidths=.5,  # 경계면 실선으로 구분하기
+            vmin = 0,vmax = 1,
+            xticklabels = emotionlabels,
+            yticklabels = emotionlabels,
+           )
+plt.xlabel('True')
+plt.ylabel('Predict')
+plt.xticks(rotation=45, ha='right')  # Rotate labels and align them horizontally
+plt.yticks(rotation=0)
+ax.tick_params(axis='both', which='major', labelsize=12)  # Change label size
+plt.tight_layout()
+plt.savefig('cm(hands).png', bbox_inches = 'tight', pad_inches=0)
+plt.show()

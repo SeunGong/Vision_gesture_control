@@ -2,7 +2,7 @@ import os
 from collections import defaultdict
 
 # 폴더 경로 리스트
-folders = [r'C:\Users\eofeh\Desktop\final_data\compare1(img)', r'C:\Users\eofeh\Desktop\final_data\compare2(label)']
+folders = [r'C:\Users\eofeh\Desktop\Model(dataset)\images(me)\1floor(me, 4wall)\valid', r'C:\Users\eofeh\Desktop\Model(dataset)\compare(labels)']
 
 # 각 파일 이름(확장자 제외)이 나타난 폴더 수를 저장하는 사전
 file_name_occurrences = defaultdict(int)

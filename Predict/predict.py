@@ -53,9 +53,6 @@ def calculate_angle_arm(a, b, c):
 model_pose = YOLO("yolov8m-pose")
 model_hands = YOLO("240430.pt")
 
-# Find hands.
-# hands = 'N'
-
 box_cx, box_cy = None, None  # predict box
 pbox_cx, pbox_cy = None, None  # pointing box
 
@@ -90,8 +87,7 @@ while True:
         for r in results_hands:
             boxes = r.boxes
             for box in boxes:
-                # class_index = box.cls  # Get the class index of the object
-                # Use the index to get the object's name
+                
                 b = box.xyxy[0].to('cpu').detach().numpy().copy()
                 c = box.cls
                 x1, y1, x2, y2 = map(int, b[:4])
@@ -141,7 +137,6 @@ while True:
     
     count_point = 6  # number of coordinate_pose
     
-    # hands = None
     distance_whl, distance_whr = None, None # Distance between winkle-hands
     value_slx, value_srx = None, None # Value shoulder x
 
@@ -203,8 +198,6 @@ while True:
     if conditions.get(hands, lambda x: False)(angle_arm):
         gesture_this = hands
         
-        # if gesture =='T':
-            # count
         if gesture_this =='P' and pbox_cx is not None:
             if active_hands == 'RIGHT'and distance_whr is not None and value_srx is not None: 
                 if pbox_cx > value_srx:
@@ -231,24 +224,9 @@ while True:
     else:
         gesture = 'N'
 
-    # if active_hands == 'RIGHT':
-    #     if hands == 'P' and distance_whr is not None and value_srx is not None and pbox_cx is not None:
-    #         if pbox_cx > value_srx:
-    #             gesture = 'R'
-    #         else:
-    #             gesture = 'L'
-
-    # elif active_hands == 'LEFT':
-    #     if hands == 'P' and distance_whl is not None and value_slx is not None and pbox_cx is not None:
-    #         if pbox_cx > value_slx:
-    #             gesture = 'R'
-    #         else:
-    #             gesture = 'L'
-
-    # pbox_cx = None
     # count_print += 1
-
     # if count_print > 10 and gesture != 'N':
+    
     if gesture != 'N':
         # print(gesture, angle_arm)
         print(gesture)

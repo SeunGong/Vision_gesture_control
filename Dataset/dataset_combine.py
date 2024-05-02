@@ -2,7 +2,7 @@ import os
 import shutil
 
 # 원본 폴더와 대상 폴더 경로 설정
-source_folder = r"C:\Users\eofeh\Desktop\Hand Shape Data\Data(image)\data(1floor)"
+source_folder = r"C:\Users\eofeh\Desktop\Dataset\images(me)\1floor(me, 4wall)"
 target_folder = os.path.join(source_folder, 'dataset')  # Simplified path
 
 # 대상 폴더가 없으면 생성

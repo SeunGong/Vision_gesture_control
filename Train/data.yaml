@@ -4,3 +4,6 @@ test: ./test/images
 
 nc: 6
 names: ['STOP', 'YOU', 'TURN', 'FORWARD', 'BACKWARD', 'POINTING']
+augmentations:
+- Albumentations:
+  horizontal_flip: true
