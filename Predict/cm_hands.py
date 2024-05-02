@@ -17,24 +17,37 @@ confusion_matrix = sv.ConfusionMatrix.benchmark(
    dataset = dataset,
    callback = callback
 )
-
+# confusion_matrix1 = sv.ConfusionMatrix.plot(
+#    save_path=r'C:\Users\eofeh\Desktop\Model\1.YOLOv8\yolo-combine\Predict',
+#    title='test',
+#    normalize=False,
+#    fig_size=(12, 10)
+# )
+classes=confusion_matrix.classes,
+# classis = ['STOP','YOU','TURN', 'FORWARD', 'BACKWARD', 'POINTING']
 cm=confusion_matrix.matrix
+print(classes)
 
-# 새로운 순서
+print(cm)
+
+cm = cm[:-1, :-1]
+
+print(cm)
+# # 새로운 순서
 new_order = [0, 3, 4, 2, 5, 1]
 
-# 행렬의 행 재배열
+# # 행렬의 행 재배열
 reordered_matrix = cm[new_order, :][:, new_order]
 
-# 결과 출력
+# # 결과 출력
 print(reordered_matrix)
 
-# 각 열의 합으로 나누어 정규화
+# # 각 열의 합으로 나누어 정규화
 T_1_normalized_by_columns = reordered_matrix / reordered_matrix.sum(axis=0, keepdims=True)
 T_1_normalized_by_columns = np.around(T_1_normalized_by_columns, decimals=2)
 
 print("Normalized Confusion Matrix (by columns):")
-# 출력 포맷을 대괄호로 묶고 소수점 두 자리까지 표시
+# # 출력 포맷을 대괄호로 묶고 소수점 두 자리까지 표시
 for row in T_1_normalized_by_columns:
     formatted_row = "[" + ", ".join(format(x, ".2f") for x in row) + "]"
     print(formatted_row)

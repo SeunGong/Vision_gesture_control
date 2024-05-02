@@ -166,9 +166,9 @@ for subdir, dirs, files in os.walk(source_folder):
             conditions = {
                 0: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
                 1: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
-                2: lambda angle_arm: angle_arm > 0 and angle_arm < 60,
-                3: lambda angle_arm: angle_arm > 140 and angle_arm < 180,
-                4: lambda angle_arm: angle_arm > 80 and angle_arm < 140,
+                2: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
+                3: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
+                4: lambda angle_arm: angle_arm > 80 and angle_arm < 140, #next backwar and turn
                 5: lambda angle_arm: angle_arm > 150 and angle_arm < 180,
             }#0'STOP', 1'YOU', 2'TURN', 3'FORWARD', 4'BACKWARD', 5'POINTING'
 
@@ -178,7 +178,7 @@ for subdir, dirs, files in os.walk(source_folder):
                 gesture = 6
                 
             gestures.append(gesture)
-            # cv2.imwrite(target_path, color_image)
+            cv2.imwrite(target_path, color_image)
             
 pred_labels = np.array(gestures)  # 모델과 post-processing을 통해 얻은 예측 결과
 true_labels = np.array(labels)
@@ -190,18 +190,13 @@ true_labels = np.array(labels)
 #         file.write(str(number) + '\n')
 # print(pred_labels)
 # print(true_labels)
-cm = confusion_matrix(true_labels, pred_labels)
-
-new_order = [0, 3, 4, 2, 5, 1]
-
-# 행렬의 행 재배열
-reordered_matrix = cm[new_order, :][:, new_order]
+cm = confusion_matrix(true_labels, pred_labels, labels=[0,3,4,2,5,1])
 
 # 결과 출력
-print(reordered_matrix)
+print(cm)
 
 # 각 열의 합으로 나누어 정규화
-T_1_normalized_by_columns = reordered_matrix / reordered_matrix.sum(axis=0, keepdims=True)
+T_1_normalized_by_columns = cm / cm.sum(axis=0, keepdims=True)
 T_1_normalized_by_columns = np.around(T_1_normalized_by_columns, decimals=2)
 
 print("Normalized Confusion Matrix (by columns):")
@@ -228,6 +223,3 @@ ax.tick_params(axis='both', which='major', labelsize=12)  # Change label size
 plt.tight_layout()
 plt.savefig('cm(integrated).png', bbox_inches = 'tight', pad_inches=0)
 plt.show()
-
-# print(cm)
-# print("모든 이미지 파일에 대한 Predict를 수행하였습니다.")
