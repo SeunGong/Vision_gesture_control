@@ -51,7 +51,7 @@ def calculate_angle_arm(a, b, c):
 
 # YOLOv8 모델을 로드합니다.
 model_pose = YOLO("yolov8m-pose")
-model_hands = YOLO("240430.pt")
+model_hands = YOLO("240502.pt")
 
 box_cx, box_cy = None, None  # predict box
 pbox_cx, pbox_cy = None, None  # pointing box
@@ -184,49 +184,69 @@ while True:
                         active_hands = 'LEFT'
                         angle_arm = calculate_angle_arm(
                             coordinate_pose[3], coordinate_pose[4], coordinate_pose[5])
+                if box_cx is not None and box_cy is not None:
+                    if(box_cy<y1 or box_cy>y2 or box_cx<x1 or box_cx>x2):
+                        print("out of box\n")
+                        # gesture=6
+    # conditions = {
+    #     "S": lambda angle_arm: angle_arm > 0 and angle_arm < 180,
+    #     "F": lambda angle_arm: angle_arm > 80 and angle_arm < 180,
+    #     "B": lambda angle_arm: angle_arm > 80 and angle_arm < 180,
+    #     "T": lambda angle_arm: angle_arm > 0 and angle_arm < 60,
+    #     "P": lambda angle_arm: angle_arm > 150 and angle_arm < 180,
+    #     "Y": lambda angle_arm: angle_arm > 0 and angle_arm < 180,
+    #     "W": lambda angle_arm: angle_arm > 0 and angle_arm < 180,
+    # }
 
-    conditions = {
-        "S": lambda angle_arm: angle_arm > 0 and angle_arm < 180,
-        "F": lambda angle_arm: angle_arm > 80 and angle_arm < 180,
-        "B": lambda angle_arm: angle_arm > 80 and angle_arm < 180,
-        "T": lambda angle_arm: angle_arm > 0 and angle_arm < 60,
-        "P": lambda angle_arm: angle_arm > 150 and angle_arm < 180,
-        "Y": lambda angle_arm: angle_arm > 0 and angle_arm < 180,
-        "W": lambda angle_arm: angle_arm > 0 and angle_arm < 180,
-    }
+    # if conditions.get(hands, lambda x: False)(angle_arm):
+    #     gesture_this = hands
+    #     if gesture_this =='P' and pbox_cx is not None:
+    #         if active_hands == 'RIGHT'and distance_whr is not None and value_srx is not None: 
+    #             if pbox_cx > value_srx:
+    #                 gesture = 'R'
+    #             else:
+    #                 gesture = 'L'
+    #         elif active_hands == 'LEFT'and distance_whl is not None and value_slx is not None:
+    #             if pbox_cx > value_slx:
+    #                 gesture = 'R'
+    #             else:
+    #                 gesture = 'L'
+    #     # print("this: ",gesture_this,"pre: ",gesture_pre,"count: ",count_gesture)
 
-    if conditions.get(hands, lambda x: False)(angle_arm):
-        gesture_this = hands
-        
-        if gesture_this =='P' and pbox_cx is not None:
-            if active_hands == 'RIGHT'and distance_whr is not None and value_srx is not None: 
-                if pbox_cx > value_srx:
-                    gesture_this = 'R'
-                else:
-                    gesture_this = 'L'
-            elif active_hands == 'LEFT'and distance_whl is not None and value_slx is not None:
-                if pbox_cx > value_slx:
-                    gesture_this = 'R'
-                else:
-                    gesture_this = 'L'
+    #     if(gesture_this==gesture_pre):
+    #         count_gesture+=1
+    #         if(count_gesture>3):
+    #             count_gesture=0
+    #             gesture=gesture_this
+    #             # print('gesture: ',gesture)
+    #     else:
+    #         gesture_pre  = gesture_this
 
-        # print("this: ",gesture_this,"pre: ",gesture_pre,"count: ",count_gesture)
-
-        if(gesture_this==gesture_pre):
-            count_gesture+=1
-            if(count_gesture>3):
-                count_gesture=0
-                gesture=gesture_this
-                # print('gesture: ',gesture)
-        else:
-            gesture_pre  = gesture_this
-
+    # else:
+    #     gesture = 'N'
+    gesture_this = hands
+    if gesture_this =='P' and pbox_cx is not None:
+        if active_hands == 'RIGHT'and distance_whr is not None and value_srx is not None: 
+            if pbox_cx > value_srx:
+                gesture = 'R'
+            else:
+                gesture = 'L'
+        elif active_hands == 'LEFT'and distance_whl is not None and value_slx is not None:
+            if pbox_cx > value_slx:
+                gesture = 'R'
+            else:
+                gesture = 'L'
+    elif gesture_this =='T':
+        gesture='T'
+    elif(gesture_this==gesture_pre):
+        count_gesture+=1
+        if(count_gesture>3):
+            count_gesture=0
+            gesture=gesture_this
+            # print('gesture: ',gesture)
     else:
-        gesture = 'N'
+        gesture_pre  = gesture_this
 
-    # count_print += 1
-    # if count_print > 10 and gesture != 'N':
-    
     if gesture != 'N':
         # print(gesture, angle_arm)
         print(gesture)
