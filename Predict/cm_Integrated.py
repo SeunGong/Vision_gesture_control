@@ -33,8 +33,8 @@ def calculate_angle_arm(a, b, c):
 model_pose = YOLO("yolov8m-pose")
 model_hands = YOLO("240502.pt")
 
-source_folder = r"C:\Users\eofeh\Desktop\Model(dataset)\test dataset(images)"
-folder_path  = r"C:\Users\eofeh\Desktop\Model(dataset)\test dataset(labels)"
+source_folder = r"C:\Users\eofeh\Desktop\Model\datasets\valid\images"
+folder_path  = r"C:\Users\eofeh\Desktop\Model\datasets\valid\labels"
 target_folder = os.path.join(source_folder, '../Confusion_predict')
 
 # 대상 폴더가 없으면 생성
@@ -92,6 +92,7 @@ for subdir, dirs, files in os.walk(source_folder):
             count_gesture=0
 
             box_cx, box_cy = None, None  # predict box
+            box_pose_cx, box_pose_cy = None, None  # predict box
             
             results_hands = model_hands(color_image, conf=0.8, verbose=False)  # Predict hands
             hands = 'N'
@@ -125,6 +126,10 @@ for subdir, dirs, files in os.walk(source_folder):
             if results_pose is not None:
                 for r in results_pose:
                     keypoints = r.keypoints
+                    pose_boxes = r.boxes
+                    b = box.xyxy[0].to('cpu').detach().numpy().copy()
+                    x1, y1, x2, y2 = map(int, b[:4])
+                    
                     for i, k in enumerate(keypoints):
                         if k.xy[0].size(0) > 6:  # Ensure there are enough elements
                             coordinate_pose[0] = k.xy[0][6].cpu().numpy()
@@ -162,6 +167,9 @@ for subdir, dirs, files in os.walk(source_folder):
                             active_hands = 'LEFT'
                             angle_arm = calculate_angle_arm(
                                 coordinate_pose[3], coordinate_pose[4], coordinate_pose[5])
+                    if box_cx is not None and box_cy is not None:
+                        if(box_cy<y1 or box_cy>y2 or box_cx<x1 or box_cx>x2):
+                            gesture=6
                             
             conditions = {
                 0: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
@@ -182,15 +190,18 @@ for subdir, dirs, files in os.walk(source_folder):
             
 pred_labels = np.array(gestures)  # 모델과 post-processing을 통해 얻은 예측 결과
 true_labels = np.array(labels)
+
 # with open('predict.txt', 'w') as file:
 #     for number in pred_labels:
 #         file.write(str(number) + '\n')
 # with open('true.txt', 'w') as file:
 #     for number in true_labels:
 #         file.write(str(number) + '\n')
+
 # print(pred_labels)
 # print(true_labels)
-cm = confusion_matrix(true_labels, pred_labels, labels=[0,3,4,2,5,1])
+# cm = confusion_matrix(true_labels, pred_labels, labels=[0,3,4,2,5,1])
+cm = confusion_matrix(true_labels, pred_labels)
 
 # 결과 출력
 print(cm)
