@@ -5,8 +5,6 @@ import numpy as np
 import pyrealsense2 as rs
 import matplotlib.pyplot as plt
 from ultralytics import YOLO
-from collections import defaultdict
-from collections import deque, Counter
 
 # Serial setting
 ser = serial.Serial('/dev/ttyUSB0', 115200)
