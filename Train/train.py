@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 
 # Load a model
-model = YOLO('240501.pt')  # load a pretrained model (recommended for training)
+model = YOLO('yolov8n.pt')  # load a pretrained model (recommended for training)
 
 # Train the model with 2 GPUs
 if __name__ == '__main__':
