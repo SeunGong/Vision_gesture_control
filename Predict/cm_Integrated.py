@@ -31,7 +31,7 @@ def calculate_angle_arm(a, b, c):
 
 # YOLOv8 모델을 로드합니다.
 model_pose = YOLO("yolov8m-pose")
-model_hands = YOLO("240502.pt")
+model_hands = YOLO("240503.pt")
 
 source_folder = r"C:\Users\eofeh\Desktop\Model\datasets\valid\images"
 folder_path  = r"C:\Users\eofeh\Desktop\Model\datasets\valid\labels"
@@ -94,8 +94,11 @@ for subdir, dirs, files in os.walk(source_folder):
             box_cx, box_cy = None, None  # predict box
             box_pose_cx, box_pose_cy = None, None  # predict box
             
-            results_hands = model_hands(color_image, conf=0.8, verbose=False)  # Predict hands
+            # results_hands = model_hands(color_image, conf=0.8, verbose=False)  # Predict hands
+            results_hands = model_hands(color_image, verbose=False)  # Predict hands
+            
             hands = 'N'
+            
             if results_hands is not None:
                 for r in results_hands:
                     boxes = r.boxes
@@ -107,7 +110,8 @@ for subdir, dirs, files in os.walk(source_folder):
                         box_cx, box_cy = int(
                             (x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
                         # hands = model_hands.names[int(c)]
-                        hands = int(c)
+                        # hands = int(c)
+                        gesture = int(c)
 
                         # Drawing bounding box
                         cv2.rectangle(color_image, (x1, y1), (x2, y2),
@@ -167,49 +171,50 @@ for subdir, dirs, files in os.walk(source_folder):
                             active_hands = 'LEFT'
                             angle_arm = calculate_angle_arm(
                                 coordinate_pose[3], coordinate_pose[4], coordinate_pose[5])
-                    if box_cx is not None and box_cy is not None:
+                    
+                            
+            # conditions = {
+            #     0: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
+            #     1: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
+            #     2: lambdazz angle_arm: angle_arm > 0 and angle_arm < 180,
+            #     3: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
+            #     4: lambda angle_arm: angle_arm > 80 and angle_arm < 140, #next backwar and turn
+            #     5: lambda angle_arm: angle_arm > 150 and angle_arm < 180,
+            # }#0'STOP', 1'YOU', 2'TURN', 3'FORWARD', 4'BACKWARD', 5'POINTING'
+
+            # if conditions.get(hands, lambda x: False)(angle_arm):
+            #     gesture = hands
+            # else:
+            #     gesture = 6
+            if box_cx is not None and box_cy is not None:
                         if(box_cy<y1 or box_cy>y2 or box_cx<x1 or box_cx>x2):
                             gesture=6
-                            
-            conditions = {
-                0: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
-                1: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
-                2: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
-                3: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
-                4: lambda angle_arm: angle_arm > 80 and angle_arm < 140, #next backwar and turn
-                5: lambda angle_arm: angle_arm > 150 and angle_arm < 180,
-            }#0'STOP', 1'YOU', 2'TURN', 3'FORWARD', 4'BACKWARD', 5'POINTING'
-
-            if conditions.get(hands, lambda x: False)(angle_arm):
-                gesture = hands
             else:
-                gesture = 6
-                
-            gestures.append(gesture)
-            cv2.imwrite(target_path, color_image)
+                gesture=6
+            gestures.append(gesture) #add predicted gesture to gestures array
+            
+            # cv2.imwrite(target_path, color_image)
             
 pred_labels = np.array(gestures)  # 모델과 post-processing을 통해 얻은 예측 결과
 true_labels = np.array(labels)
 
-# with open('predict.txt', 'w') as file:
-#     for number in pred_labels:
-#         file.write(str(number) + '\n')
-# with open('true.txt', 'w') as file:
-#     for number in true_labels:
-#         file.write(str(number) + '\n')
+with open('predict.txt', 'w') as file:
+    for number in pred_labels:
+        file.write(str(number) + '\n')
+with open('true.txt', 'w') as file:
+    for number in true_labels:
+        file.write(str(number) + '\n')
 
-# print(pred_labels)
-# print(true_labels)
-# cm = confusion_matrix(true_labels, pred_labels, labels=[0,3,4,2,5,1])
-cm = confusion_matrix(true_labels, pred_labels)
+cm = confusion_matrix(true_labels, pred_labels, labels=[0,3,4,2,5,1,6])
+# cm = confusion_matrix(true_labels, pred_labels)
 
 # 결과 출력
-print(cm)
 
+print(cm)
+cm=np.transpose(cm)
 # 각 열의 합으로 나누어 정규화
 T_1_normalized_by_columns = cm / cm.sum(axis=0, keepdims=True)
 T_1_normalized_by_columns = np.around(T_1_normalized_by_columns, decimals=2)
-
 print("Normalized Confusion Matrix (by columns):")
 # 출력 포맷을 대괄호로 묶고 소수점 두 자리까지 표시
 for row in T_1_normalized_by_columns:
@@ -217,7 +222,7 @@ for row in T_1_normalized_by_columns:
     print(formatted_row)
 
 fig, ax = plt.subplots( figsize=(6,6) )
-emotionlabels = ['Stop/Waving', 'Forward', 'Backward', 'Turn', 'Pointing','You']
+emotionlabels = ['Stop/Waving', 'Forward', 'Backward', 'Turn', 'Pointing','You','Background']
 sns.heatmap(T_1_normalized_by_columns,
             cmap = 'Blues',
             annot = True,   # 실제 값을 표시한다
