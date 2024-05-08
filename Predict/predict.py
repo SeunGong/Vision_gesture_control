@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from ultralytics import YOLO
 
 # Serial setting
-ser = serial.Serial('/dev/ttyUSB0', 115200)
+# ser = serial.Serial('/dev/ttyUSB0', 115200)
 
 # 카메라 프레임의 원하는 너비와 높이를 정의합니다.
 W, H = 640, 480
@@ -97,7 +97,7 @@ while True:
                 box_cx, box_cy = int(
                     (x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
                 depth_box = depth_frame.get_distance(box_cx, box_cy)
-                # print(depth_box)
+                print(depth_box)
                 hands = model_hands.names[int(c)]
                 
                 if hands == 'STOP':
@@ -108,8 +108,9 @@ while True:
 
                     if pre_cx_stop is not None and pre_cy_stop is not None:
                         # Calculate Euclidean distance between previous and current center
-                        distance = np.sqrt(
-                            (cur_cx_stop - pre_cx_stop)**2 + (cur_cy_stop - pre_cy_stop)**2)
+                        # distance = np.sqrt(
+                            # (cur_cx_stop - pre_cx_stop)**2 + (cur_cy_stop - pre_cy_stop)**2)
+                        distance=abs(cur_cx_stop - pre_cx_stop)
                         # print(distance)
                         if distance > threshold_waving:
                             hands = 'W'
@@ -132,7 +133,9 @@ while True:
                 # Drawing bounding box
                 cv2.rectangle(color_image, (x1, y1), (x2, y2),
                                   (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
-                cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX,
+                cv2.putText(color_image,  str(depth_box), (x1, y1), cv2.FONT_HERSHEY_SIMPLEX,
+                            1, (0, 255, 255), 2, cv2.LINE_4)
+                cv2.putText(color_image,  model_hands.names[int(c)], (box_cx, box_cy), cv2.FONT_HERSHEY_SIMPLEX,
                             0.7, (0, 0, 255), 2, cv2.LINE_4)
 
 
@@ -154,10 +157,10 @@ while True:
                 b = pose_boxes.xyxy[0].to('cpu').detach().numpy().copy()
                 px1, py1, px2, py2 = map(int, b[:4])
                 # print(px1, py1, px2, py2)
-                cv2.putText(pose_color_image, "left", (px1, py1+50), cv2.FONT_HERSHEY_SIMPLEX,
-                            0.7, (0, 255, 0), 2, cv2.LINE_4)
-                cv2.putText(pose_color_image, "right", (px2, py2), cv2.FONT_HERSHEY_SIMPLEX,
-                            0.7, (0, 255, 0), 2, cv2.LINE_4)
+                # cv2.putText(pose_color_image, "left", (px1, py1+50), cv2.FONT_HERSHEY_SIMPLEX,
+                #             0.7, (0, 255, 0), 2, cv2.LINE_4)
+                # cv2.putText(pose_color_image, "right", (px2, py2), cv2.FONT_HERSHEY_SIMPLEX,
+                #             0.7, (0, 255, 0), 2, cv2.LINE_4)
             for i, k in enumerate(keypoints):
                 if k.xy[0].size(0) > 6:  # Ensure there are enough elements
                     coordinate_pose[0] = k.xy[0][6].cpu().numpy()
@@ -252,8 +255,8 @@ while True:
                 gesture = 'R'
             else:
                 gesture = 'L'
-    elif gesture_this =='W':
-        gesture='W'
+    # elif gesture_this =='W':
+    #     gesture='W'
     elif(gesture_this==gesture_pre):
         count_gesture+=1
         if(count_gesture>3):
@@ -266,7 +269,7 @@ while True:
     if gesture != 'N':
         # print(gesture, angle_arm)
         print(gesture)
-        ser.write(str(gesture).encode('utf-8')) #To do
+        # ser.write(str(gesture).encode('utf-8')) #To do
         gesture = 'N'
         # count_print = 0
         # time2 = time.time()
