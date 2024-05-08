@@ -6,10 +6,10 @@ from ultralytics import YOLO
 # Load a model
 # load a custom model
 model = YOLO(
-    r"C:\Users\eofeh\Desktop\Model\1.YOLOv8\yolo-combine\Predict\240429.pt")
+    r"C:\Users\eofeh\Desktop\Model\1.YOLOv8\yolo-combine\Predict\240503.pt")
 
 # 원본 폴더와 대상 폴더 경로 설정
-source_folder = r"C:\Users\eofeh\Desktop\Model(dataset)\turn test"
+source_folder = r"C:\Users\eofeh\Desktop\Test"
 target_folder = os.path.join(source_folder, '../Model_predict')  # Simplified path
 
 # 대상 폴더가 없으면 생성

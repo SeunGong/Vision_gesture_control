@@ -1,5 +1,6 @@
 import os
 import cv2
+import shutil
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -35,17 +36,30 @@ model_hands = YOLO("240503.pt")
 
 source_folder = r"C:\Users\eofeh\Desktop\Model\datasets\valid\images"
 folder_path  = r"C:\Users\eofeh\Desktop\Model\datasets\valid\labels"
-target_folder = os.path.join(source_folder, '../Confusion_predict')
 
-# 대상 폴더가 없으면 생성
-if not os.path.exists(target_folder):
-    os.makedirs(target_folder)
+predict_folder = os.path.join(source_folder, '../Predicted')
+mismatch_folder = os.path.join(source_folder, '../Mismatch_image')  # 불일치 이미지를 저장할 폴더
+
+# 폴더 생성을 위한 함수
+def create_folder(folder_path):
+    try:
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+            print(f"Folder created: {folder_path}")
+        else:
+            print(f"Folder already exists: {folder_path}")
+    except Exception as e:
+        print(f"Failed to create folder {folder_path}. Error: {str(e)}")
+
+create_folder(predict_folder)
+create_folder(mismatch_folder)
 
 # 지원하는 이미지 확장자 목록
-image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif']
+image_extensions = ['.jpg', '.png', '.jpeg']  # 이미지 파일 확장자
 
-gestures=[]
 labels=[]
+gestures=[]
+file_names=[]
 
 for filename in os.listdir(folder_path):
     # 파일 확장자가 .txt인 경우
@@ -64,7 +78,7 @@ for filename in os.listdir(folder_path):
             
 for subdir, dirs, files in os.walk(source_folder):
     # 현재 순회 중인 폴더가 target_folder면 건너뛰기
-    if subdir.startswith(target_folder):
+    if subdir.startswith(predict_folder):
         continue
 
     for file in files:
@@ -74,7 +88,7 @@ for subdir, dirs, files in os.walk(source_folder):
             # 이미지 파일의 원본 경로
             source_path = os.path.join(subdir, file)
             # 이미지 파일의 새 경로 (대상 폴더)
-            target_path = os.path.join(target_folder, file)
+            target_path = os.path.join(predict_folder, file)
 
             # 파일명 충돌 방지
             if os.path.exists(target_path):
@@ -82,11 +96,12 @@ for subdir, dirs, files in os.walk(source_folder):
                 counter = 1
                 while os.path.exists(target_path):
                     target_path = os.path.join(
-                        target_folder, f"{base}_{counter}{extension}")
+                        predict_folder, f"{base}_{counter}{extension}")
                     counter += 1
 
             image = cv2.imread(source_path)
             color_image = np.asanyarray(image)
+            
             #predict----------------------------------------------------------
             angle_arm = 0
             count_gesture=0
@@ -131,8 +146,9 @@ for subdir, dirs, files in os.walk(source_folder):
                 for r in results_pose:
                     keypoints = r.keypoints
                     pose_boxes = r.boxes
-                    b = box.xyxy[0].to('cpu').detach().numpy().copy()
-                    x1, y1, x2, y2 = map(int, b[:4])
+                    if len(pose_boxes.xyxy) > 0:
+                        b = pose_boxes.xyxy[0].to('cpu').detach().numpy().copy()
+                        px1, py1, px2, py2 = map(int, b[:4])
                     
                     for i, k in enumerate(keypoints):
                         if k.xy[0].size(0) > 6:  # Ensure there are enough elements
@@ -172,7 +188,7 @@ for subdir, dirs, files in os.walk(source_folder):
                             angle_arm = calculate_angle_arm(
                                 coordinate_pose[3], coordinate_pose[4], coordinate_pose[5])
                     
-                            
+            """ condition           
             # conditions = {
             #     0: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
             #     1: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
@@ -186,36 +202,42 @@ for subdir, dirs, files in os.walk(source_folder):
             #     gesture = hands
             # else:
             #     gesture = 6
+    
+             """
             if box_cx is not None and box_cy is not None:
                         if(box_cy<y1 or box_cy>y2 or box_cx<x1 or box_cx>x2):
                             gesture=6
             else:
                 gesture=6
             gestures.append(gesture) #add predicted gesture to gestures array
-            
-            # cv2.imwrite(target_path, color_image)
-            
+            file_names.append(file)
+            cv2.imwrite(target_path, color_image)
+            #predict----------------------------------------------------------
+                       
 pred_labels = np.array(gestures)  # 모델과 post-processing을 통해 얻은 예측 결과
 true_labels = np.array(labels)
 
-with open('predict.txt', 'w') as file:
-    for number in pred_labels:
-        file.write(str(number) + '\n')
-with open('true.txt', 'w') as file:
-    for number in true_labels:
-        file.write(str(number) + '\n')
+with open('mismatch.txt', 'w') as file:
+    for index, (pred_label, true_label) in enumerate(zip(pred_labels, true_labels)):
+        if pred_label != true_label:
+            file.write(f"{index}: {file_names[index]}: {pred_label} != {true_label}\n")
 
+            # 불일치하는 이미지를 별도 폴더에 저장
+            source_path = os.path.join(predict_folder, file_names[index])  # 이미지 파일 경로 재구성
+            target_mismatch_path = os.path.join(mismatch_folder, f"mismatch_{file_names[index]}")
+            shutil.copy(source_path, target_mismatch_path)
+
+"""draw confusion matrix
 cm = confusion_matrix(true_labels, pred_labels, labels=[0,3,4,2,5,1,6])
-# cm = confusion_matrix(true_labels, pred_labels)
-
-# 결과 출력
 
 print(cm)
 cm=np.transpose(cm)
+
 # 각 열의 합으로 나누어 정규화
 T_1_normalized_by_columns = cm / cm.sum(axis=0, keepdims=True)
 T_1_normalized_by_columns = np.around(T_1_normalized_by_columns, decimals=2)
 print("Normalized Confusion Matrix (by columns):")
+
 # 출력 포맷을 대괄호로 묶고 소수점 두 자리까지 표시
 for row in T_1_normalized_by_columns:
     formatted_row = "[" + ", ".join(format(x, ".2f") for x in row) + "]"
@@ -239,3 +261,4 @@ ax.tick_params(axis='both', which='major', labelsize=12)  # Change label size
 plt.tight_layout()
 plt.savefig('cm(integrated).png', bbox_inches = 'tight', pad_inches=0)
 plt.show()
+"""
