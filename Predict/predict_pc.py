@@ -1,10 +1,12 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import cv2
+import time
 import numpy as np
 import pyrealsense2 as rs
 import matplotlib.pyplot as plt
 from ultralytics import YOLO
-from collections import defaultdict
-from collections import deque, Counter
 
 # 카메라 프레임의 원하는 너비와 높이를 정의합니다.
 W, H = 640, 480
@@ -12,6 +14,7 @@ W, H = 640, 480
 # RealSense 카메라 파이프라인 초기화
 config = rs.config()
 config.enable_stream(rs.stream.color, W, H, rs.format.bgr8, 30)
+config.enable_stream(rs.stream.depth, W, H, rs.format.z16, 30)
 
 pipeline = rs.pipeline()
 profile = pipeline.start(config)
@@ -22,7 +25,6 @@ align = rs.align(align_to)
 
 gesture = None
 count_print = 0
-
 
 def calculate_angle_arm(a, b, c):
 
@@ -43,10 +45,9 @@ def calculate_angle_arm(a, b, c):
     # 각도를 리턴한다.
     return angle_arm
 
-
 # YOLOv8 모델을 로드합니다.
 model_pose = YOLO("yolov8m-pose")
-model_hands = YOLO("240502.pt")
+model_hands = YOLO("240503.pt")
 
 box_cx, box_cy = None, None  # predict box
 pbox_cx, pbox_cy = None, None  # pointing box
@@ -65,14 +66,17 @@ while True:
     # time1 = time.time() #for measure FPS
     frames = pipeline.wait_for_frames()  # RealSense로부터 컬러 및 깊이 이미지 프레임을 검색합니다.
     aligned_frames = align.process(frames)  # 깊이 프레임을 컬러 프레임의 관점으로 정렬합니다.
+    
     color_frame = aligned_frames.get_color_frame()
+    depth_frame = aligned_frames.get_depth_frame()
 
     if not color_frame:
         continue  # 컬러 이미지 데이터가 없으면 프레임을 건너뜁니다.
 
     # 프레임 데이터를 NumPy 배열로 변환합니다.
     color_image = np.asanyarray(color_frame.get_data())
-
+    depth_image = np.asanyarray(depth_frame.get_data())
+    
     results_hands = model_hands(
         color_image, conf=0.8, verbose=False)  # Predict hands
     
@@ -88,7 +92,8 @@ while True:
                 x1, y1, x2, y2 = map(int, b[:4])
                 box_cx, box_cy = int(
                     (x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
-
+                depth_box = depth_frame.get_distance(box_cx, box_cy)
+                # print(depth_box)
                 hands = model_hands.names[int(c)]
                 
                 if hands == 'STOP':
@@ -126,6 +131,7 @@ while True:
                 cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX,
                             0.7, (0, 0, 255), 2, cv2.LINE_4)
 
+
     results_pose = model_pose(color_image, conf=0.8, verbose=False) # Predict coordinate_pose
 
     pose_color_image = results_pose[0].plot()
@@ -139,6 +145,15 @@ while True:
     if results_pose is not None:
         for r in results_pose:
             keypoints = r.keypoints
+            pose_boxes = r.boxes
+            if len(pose_boxes.xyxy) > 0:
+                b = pose_boxes.xyxy[0].to('cpu').detach().numpy().copy()
+                px1, py1, px2, py2 = map(int, b[:4])
+                # print(px1, py1, px2, py2)
+                cv2.putText(pose_color_image, "left", (px1, py1+50), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7, (0, 255, 0), 2, cv2.LINE_4)
+                cv2.putText(pose_color_image, "right", (px2, py2), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7, (0, 255, 0), 2, cv2.LINE_4)
             for i, k in enumerate(keypoints):
                 if k.xy[0].size(0) > 6:  # Ensure there are enough elements
                     coordinate_pose[0] = k.xy[0][6].cpu().numpy()
@@ -168,7 +183,7 @@ while True:
                         distance_whl = np.sqrt((box_cx - int(coordinate_pose[5][0]))**2 + (
                             box_cy - int(coordinate_pose[5][1]))**2) 
                 
-                box_cx, box_cy = None, None
+                
 
                 if distance_whl is not None and distance_whr is not None: #  Activate hand selection
                     if (distance_whl > distance_whr):
@@ -179,54 +194,79 @@ while True:
                         active_hands = 'LEFT'
                         angle_arm = calculate_angle_arm(
                             coordinate_pose[3], coordinate_pose[4], coordinate_pose[5])
+                if box_cx is not None and box_cy is not None:
+                    if(box_cy<y1 or box_cy>y2 or box_cx<x1 or box_cx>x2):
+                        print("out of box\n")
+                        # gesture=6
+                        
+                box_cx, box_cy = None, None
+    # conditions = {
+    #     "S": lambda angle_arm: angle_arm > 0 and angle_arm < 180,
+    #     "F": lambda angle_arm: angle_arm > 80 and angle_arm < 180,
+    #     "B": lambda angle_arm: angle_arm > 80 and angle_arm < 180,
+    #     "T": lambda angle_arm: angle_arm > 0 and angle_arm < 60,
+    #     "P": lambda angle_arm: angle_arm > 150 and angle_arm < 180,
+    #     "Y": lambda angle_arm: angle_arm > 0 and angle_arm < 180,
+    #     "W": lambda angle_arm: angle_arm > 0 and angle_arm < 180,
+    # }
 
-    conditions = {
-        "S": lambda angle_arm: angle_arm > 0 and angle_arm < 180,
-        "F": lambda angle_arm: angle_arm > 80 and angle_arm < 180,
-        "B": lambda angle_arm: angle_arm > 80 and angle_arm < 180,
-        "T": lambda angle_arm: angle_arm > 0 and angle_arm < 60,
-        "P": lambda angle_arm: angle_arm > 150 and angle_arm < 180,
-        "Y": lambda angle_arm: angle_arm > 0 and angle_arm < 180,
-        "W": lambda angle_arm: angle_arm > 0 and angle_arm < 180,
-    }
+    # if conditions.get(hands, lambda x: False)(angle_arm):
+    #     gesture_this = hands
+    #     if gesture_this =='P' and pbox_cx is not None:
+    #         if active_hands == 'RIGHT'and distance_whr is not None and value_srx is not None: 
+    #             if pbox_cx > value_srx:
+    #                 gesture = 'R'
+    #             else:
+    #                 gesture = 'L'
+    #         elif active_hands == 'LEFT'and distance_whl is not None and value_slx is not None:
+    #             if pbox_cx > value_slx:
+    #                 gesture = 'R'
+    #             else:
+    #                 gesture = 'L'
+    #     # print("this: ",gesture_this,"pre: ",gesture_pre,"count: ",count_gesture)
 
-    if conditions.get(hands, lambda x: False)(angle_arm):
-        gesture_this = hands
-        
-        if gesture_this =='P' and pbox_cx is not None:
-            if active_hands == 'RIGHT'and distance_whr is not None and value_srx is not None: 
-                if pbox_cx > value_srx:
-                    gesture_this = 'R'
-                else:
-                    gesture_this = 'L'
-            elif active_hands == 'LEFT'and distance_whl is not None and value_slx is not None:
-                if pbox_cx > value_slx:
-                    gesture_this = 'R'
-                else:
-                    gesture_this = 'L'
+    #     if(gesture_this==gesture_pre):
+    #         count_gesture+=1
+    #         if(count_gesture>3):
+    #             count_gesture=0
+    #             gesture=gesture_this
+    #             # print('gesture: ',gesture)
+    #     else:
+    #         gesture_pre  = gesture_this
 
-        # print("this: ",gesture_this,"pre: ",gesture_pre,"count: ",count_gesture)
-
-        if(gesture_this==gesture_pre):
-            count_gesture+=1
-            if(count_gesture>3):
-                count_gesture=0
-                gesture=gesture_this
-                # print('gesture: ',gesture)
-        else:
-            gesture_pre  = gesture_this
-
-    else:
-        gesture = 'N'
-
-    # count_print += 1
-    # if count_print > 10 and gesture != 'N':
+    # else:
+    #     gesture = 'N'
+    gesture_this = hands
     
+    if gesture_this =='P' and pbox_cx is not None:
+        if active_hands == 'RIGHT'and distance_whr is not None and value_srx is not None: 
+            if pbox_cx > value_srx:
+                gesture = 'R'
+            else:
+                gesture = 'L'
+        elif active_hands == 'LEFT'and distance_whl is not None and value_slx is not None:
+            if pbox_cx > value_slx:
+                gesture = 'R'
+            else:
+                gesture = 'L'
+    elif gesture_this =='W':
+        gesture='W'
+    elif(gesture_this==gesture_pre):
+        count_gesture+=1
+        if(count_gesture>3):
+            count_gesture=0
+            gesture=gesture_this
+            # print('gesture: ',gesture)
+    else:
+        gesture_pre  = gesture_this
+
     if gesture != 'N':
         # print(gesture, angle_arm)
         print(gesture)
         gesture = 'N'
         # count_print = 0
+        # time2 = time.time()
+        # print(f"FPS : {1 / (time2 - time1):.2f}")
 
     cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
 
