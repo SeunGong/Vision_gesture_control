@@ -114,6 +114,7 @@ while True:
                         # print(distance)
                         if distance > threshold_waving:
                             hands = 'W'
+                            
                         distance=0
 
                     pre_cx_stop, pre_cy_stop = cur_cx_stop, cur_cy_stop
