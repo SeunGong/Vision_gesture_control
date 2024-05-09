@@ -53,8 +53,8 @@ box_cx, box_cy = None, None  # predict box
 pbox_cx, pbox_cy = None, None  # pointing box
 
 # Previous center coordinates
-pre_cx_stop, pre_cy_stop, pre_cx_pointing, pre_cy_pointing = None, None, None, None
-cur_cx_stop, cur_cy_stop, cur_cx_pointing, cur_cy_pointing = None, None, None, None
+pre_stop_cx, pre_stop_cy, pre_cx_pointing, pre_cy_pointing = None, None, None, None
+cur_stop_cx, cur_stop_cy, cur_cx_pointing, cur_cy_pointing = None, None, None, None
 threshold_waving = 30  # Threshold for detecting significant change
 
 angle_arm = 0
@@ -92,26 +92,26 @@ while True:
                 x1, y1, x2, y2 = map(int, b[:4])
                 box_cx, box_cy = int(
                     (x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
-                depth_box = depth_frame.get_distance(box_cx, box_cy)
-                # print(depth_box)
+                array_boxes_depth = depth_frame.get_distance(box_cx, box_cy)
+                # print(array_boxes_depth)
                 hands = model_hands.names[int(c)]
                 
                 if hands == 'STOP':
-                    cur_cx_stop, cur_cy_stop = int(
+                    cur_stop_cx, cur_stop_cy = int(
                         (x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
                     
                     hands = 'S'
 
-                    if pre_cx_stop is not None and pre_cy_stop is not None:
+                    if pre_stop_cx is not None and pre_stop_cy is not None:
                         # Calculate Euclidean distance between previous and current center
                         distance = np.sqrt(
-                            (cur_cx_stop - pre_cx_stop)**2 + (cur_cy_stop - pre_cy_stop)**2)
+                            (cur_stop_cx - pre_stop_cx)**2 + (cur_stop_cy - pre_stop_cy)**2)
                         # print(distance)
                         if distance > threshold_waving:
                             hands = 'W'
                         distance=0
 
-                    pre_cx_stop, pre_cy_stop = cur_cx_stop, cur_cy_stop
+                    pre_stop_cx, pre_stop_cy = cur_stop_cx, cur_stop_cy
 
                 elif hands == 'FORWARD':
                     hands = 'F'

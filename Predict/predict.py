@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from pickle import NONE
 import cv2
 import time
 import serial
@@ -69,6 +70,7 @@ pre_gesture = 'N'
 shape_hand = 'N'
 depth_hand = None
 count_keypoints = 9  # Number of array for pose coordinate
+active_hands = None
 
 while True:
     # time1 = time.time() #for measure FPS
@@ -96,7 +98,7 @@ while True:
 
         for r in results_hands:
             boxes = r.boxes  # Boxes class
-            
+
             array_depth_boxes = [0] * len(boxes)
             array_shape_hands = [''] * len(boxes)
             min_box_depth = float('inf')
@@ -152,49 +154,79 @@ while True:
                     shape_hand = shape_hand[0]
 
     distance_whl, distance_whr = None, None  # Distance both side winkle-hands
+    diff_x_sh = None  # Difference between shoulder and hip
     value_slx, value_srx = None, None  # Value shoulder x
+    value_slx, value_srx = None, None  # Value shoulder x
+    value_sly, value_sry = None, None  # Value shoulder y
+    value_hly, value_hry = None, None  # Value hip right x
     depth_nose = None
-    
+
     results_pose = model_pose(color_image, conf=0.8,
                               verbose=False)  # Predict pose
     pose_color_image = results_pose[0].plot()  # Draw skelton to pose image
-
 
     array_keypoints = np.zeros((count_keypoints, 2))  # [RS,RE,RW,LS,LE,LW,N]
     if results_pose is not None:
         for r in results_pose:
             keypoints = r.keypoints
             pose_boxes = r.boxes
-            if len(pose_boxes.xyxy) > 0:
-                b = pose_boxes.xyxy[0].to('cpu').detach().numpy().copy()
-                px1, py1, px2, py2 = map(int, b[:4]) #Get person coordinate
-                # print(px1, py1, px2, py2)
-                # cv2.putText(pose_color_image, "left", (px1, py1+50), cv2.FONT_HERSHEY_SIMPLEX,
-                #             0.7, (0, 255, 0), 2, cv2.LINE_4)
-                # cv2.putText(pose_color_image, "right", (px2, py2), cv2.FONT_HERSHEY_SIMPLEX,
-                #             0.7, (0, 255, 0), 2, cv2.LINE_4)
-            for i, k in enumerate(keypoints):
+            
+            min_pose_depth = float('inf')
+            final_pose_index = 0
+            abc=0
+            #Finding for 
+            for number_pose_box, box in enumerate(pose_boxes):
+                # abc+=1 #check for pose box count
+                b = box.xyxy[0].to('cpu').detach().numpy().copy()
+                # Box left top and right bottom coordinate
+                x1, y1, x2, y2 = map(int, b[:4])
+                pose_box_cx, pose_box_cy = int(
+                    (x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)  # Get box center coordinate
+                depth_pose_box = depth_frame.get_distance(pose_box_cx, pose_box_cy)
+                
+                # Drawing bounding box
+                if depth_pose_box < min_pose_depth:
+                    # cv2.putText(pose_color_image, "left", (pose_box_cx, pose_box_cy+10), cv2.FONT_HERSHEY_SIMPLEX,
+                    #     0.7, (0, 255, 0), 2, cv2.LINE_4)
+                    min_pose_depth = depth_pose_box
+                    final_pose_index = number_pose_box
+                    # px1, py1, px2, py2= map(int, b[:4])
+                    
+            coordi_pose=pose_boxes[final_pose_index].xyxy[0]
+            px1, py1, px2, py2= map(int, coordi_pose[:4])      
+            cv2.putText(pose_color_image, "left", (px1, py1+10), cv2.FONT_HERSHEY_SIMPLEX,
+                0.7, (0, 255, 0), 2, cv2.LINE_4)
+            cv2.putText(pose_color_image, "right", (px2, py2), cv2.FONT_HERSHEY_SIMPLEX,
+                0.7, (0, 255, 0), 2, cv2.LINE_4) 
+            
+            # print(abc)       
+            # abc=0
+            
+            # if len(pose_boxes.xyxy) > 0:
+            #     # print(px1, py1, px2, py2)
+
+            for i, k in enumerate(keypoints[final_pose_index]):
                 if k.xy[0].size(0) > 0:  # Ensure there are enough elements
                     array_keypoints[6] = k.xy[0][0].cpu().numpy()  # Nose
                     try:
                         depth_nose = depth_frame.get_distance(
-                        int(array_keypoints[6][0]), int(array_keypoints[6][1]))
+                            int(array_keypoints[6][0]), int(array_keypoints[6][1]))
                     except RuntimeError as e:
                         print(f"An error occurred: {e}")
-                    
+
                     cv2.putText(pose_color_image, f"Depth: {depth_nose}", (int(array_keypoints[6][0]), int(
                         array_keypoints[6][1])), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_4)
-                    
-                    if(depth_nose is not None and depth_hand is not None):
-                        if(depth_nose != 0.0 and depth_hand != 0.0):
-                            if(depth_nose-depth_hand<0):
+
+                    if (depth_nose is not None and depth_hand is not None):
+                        if (depth_nose != 0.0 and depth_hand != 0.0):
+                            if (depth_nose-depth_hand < 0):
                                 continue
-                            print('{0:.2f} {1} {2}'.format(depth_nose-depth_hand, depth_nose, depth_hand))
-                    
+                            # print('{0:.2f} {1} {2}'.format(depth_nose-depth_hand, depth_nose, depth_hand))
+
                 if k.xy[0].size(0) > 6:
                     array_keypoints[0] = k.xy[0][6].cpu().numpy()
-                    value_srx = int(array_keypoints[0][0])  # Right shoulder
-
+                    value_srx = int(array_keypoints[0][0])  # Right shoulder x
+                    value_sry = int(array_keypoints[0][1])  # Right Shoulder y
                 if k.xy[0].size(0) > 8:
                     # Right elbow
                     array_keypoints[1] = k.xy[0][8].cpu().numpy()
@@ -207,13 +239,13 @@ while True:
                         distance_whr = np.sqrt((box_cx - int(array_keypoints[2][0]))**2 + (box_cy - int(
                             array_keypoints[2][1]))**2)
                 if k.xy[0].size(0) > 12:
-                    # Right wrist
+                    # Right hip
                     array_keypoints[7] = k.xy[0][12].cpu().numpy()
-                    
-
+                    value_hry = int(array_keypoints[7][1])
                 if k.xy[0].size(0) > 5:
                     array_keypoints[3] = k.xy[0][5].cpu().numpy()
                     value_slx = int(array_keypoints[3][0])  # Left shoulder
+                    value_sly = int(array_keypoints[3][1])  # Left shoulder
 
                 if k.xy[0].size(0) > 7:
                     array_keypoints[4] = k.xy[0][7].cpu().numpy()  # Left elbow
@@ -224,6 +256,10 @@ while True:
                     if box_cx is not None:
                         distance_whl = np.sqrt((box_cx - int(array_keypoints[5][0]))**2 + (
                             box_cy - int(array_keypoints[5][1]))**2)
+                if k.xy[0].size(0) > 11:
+                    # left hip
+                    array_keypoints[8] = k.xy[0][11].cpu().numpy()
+                    value_hly = int(array_keypoints[8][1])
 
                 if distance_whl is not None and distance_whr is not None:  # Activate hand selection
                     if (distance_whl > distance_whr):
@@ -235,10 +271,23 @@ while True:
                         angle_arm = calculate_angle_arm(
                             array_keypoints[3], array_keypoints[4], array_keypoints[5])
 
-                if box_cx is not None and box_cy is not None:  # Figure 1: misrecognition bacground
+                if box_cx is not None and box_cy is not None:  # Figure 1: misrecognition background
                     if (box_cy < y1 or box_cy > y2 or box_cx < x1 or box_cx > x2):
                         print("Misrecognition gesture out of the box.\n")
                         gesture = 'N'
+                    # Get ratio between shoulder-hip and shoulder-box
+                    if (active_hands == 'RIGHT' and value_hry is not None and value_sry is not None):
+                        if(value_hry>0 and value_sry>0):
+                            diff_y_sh = value_hry-value_sry
+                            diff_y_sb = abs(box_cy-value_sry)
+                            print(diff_y_sb/diff_y_sh, 'H: ', value_hry,
+                                'S: ', value_sry, 'B: ', box_cy)
+                    elif (active_hands == 'LEFT' and value_hly is not None and value_sly is not None):
+                        if(value_hly>0 and value_sly>0):
+                            diff_y_sh = value_hly-value_sly
+                            diff_y_sb = abs(box_cy-value_sly)
+                            print(diff_y_sb/diff_y_sh, 'H: ', value_hly,
+                                'S: ', value_sly, 'B: ', box_cy)
 
                 box_cx, box_cy = None, None
 
