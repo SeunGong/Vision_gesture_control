@@ -59,6 +59,8 @@ image_extensions = ['.jpg', '.png', '.jpeg']  # 이미지 파일 확장자
 
 labels=[]
 gestures=[]
+angles=[]
+ratios=[]
 file_names=[]
 
 for filename in os.listdir(folder_path):
@@ -232,12 +234,18 @@ for subdir, dirs, files in os.walk(source_folder):
                             ratio_hand=5
 
                 gestures.append(ratio_hand) #add predicted gesture to gestures array
+                angles.append(arm_angle) #add predicted gesture to gestures array
+                ratios.append(arm_ratio) #add predicted gesture to gestures array
+                
                 file_names.append(file)
                 cv2.imwrite(target_path, pose_color_image)
         #predict----------------------------------------------------------
                        
 pred_labels = np.array(gestures)  # 모델과 post-processing을 통해 얻은 예측 결과
 true_labels = np.array(labels)
+angle_labels = np.array(angles)
+ratio_labels = np.array(ratios)
+
 with open('predict.txt', 'w') as file:
     for number in pred_labels:
         file.write(str(number) + '\n')
@@ -245,7 +253,7 @@ with open('true.txt', 'w') as file:
     for number in true_labels:
         file.write(str(number) + '\n')
 with open('mismatch.txt', 'w') as file:
-    for index, (pred_label, true_label) in enumerate(zip(pred_labels, true_labels)):
+    for index, (pred_label, true_label,angle_labels,ratio_labels) in enumerate(zip(pred_labels, true_labels,angle_labels,ratio_labels)):
         if pred_label != true_label:
             file.write(f"{index}: {file_names[index]}: {pred_label} != {true_label},{arm_ratio},{arm_angle}\n")
 
