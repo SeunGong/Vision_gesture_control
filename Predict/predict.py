@@ -39,6 +39,8 @@ model_hands = YOLO("240503.pt")
 #MACRO
 threshold_waving = 40  # Threshold for waving
 count_gesture = 0
+weight_direction=1
+DISTANCE_MAX=1
 #Init variable
 pre_stop_cx, pre_stop_cy = None, None # Previous center coordinates
 pre_gesture = 'N'
@@ -79,7 +81,8 @@ while True:
     
     depth_nose = None
     depth_hand = None
-    
+    min_pose_depth = None
+
     arm_angle = None
     arm_ratio=None
     
@@ -231,17 +234,35 @@ while True:
                 elif(shape_hand=='B'and arm_angle<120):
                     ratio_hand=shape_hand
                 elif(shape_hand=='P'):
+                    if(min_pose_depth>DISTANCE_MAX):
+                        min_pose_depth=DISTANCE_MAX
+                    distance_depth=min_pose_depth*weight_direction
+                    if(box_cx>320):
+                        move_direction = 'R'
+                        weight_direction=(box_cx-320)/320*1.0
+                        motor_L=distance_depth*weight_direction
+                        motor_R=distance_depth
+                    elif(box_cx<320):
+                        move_direction = 'L'
+                        weight_direction=(320-box_cx)/320*1.0
+                        motor_L=distance_depth
+                        motor_R=distance_depth*weight_direction
+                    else:
+                        motor_L=distance_depth
+                        motor_R=distance_depth
+
                     ratio_hand=shape_hand
-                    if active_hand == 'RIGHT' and euclidean_whr is not None and rsx is not None:
-                        if box_cx > rsx:
-                            ratio_hand = 'R'
-                        else:
-                            ratio_hand = 'L'
-                    elif active_hand == 'LEFT' and euclidean_whl is not None and lsx is not None:
-                        if box_cx > lsx:
-                            ratio_hand = 'R'
-                        else:
-                            ratio_hand = 'L'
+                    # if active_hand == 'RIGHT' and euclidean_whr is not None and rsx is not None:
+                    #     if box_cx > rsx:
+                    #         ratio_hand = 'R'
+                    #     else:
+                    #         ratio_hand = 'L'
+                    # elif active_hand == 'LEFT' and euclidean_whl is not None and lsx is not None:
+                    #     if box_cx > lsx:
+                    #         ratio_hand = 'R'
+                    #     else:
+                    #         ratio_hand = 'L'
+
             # if(arm_ratio is not None and arm_angle is not None):
             #     print(f"Hand: {ratio_hand}",f"Ratio: {arm_ratio:.3f}",f"angle: {arm_angle:.3f}")
             
