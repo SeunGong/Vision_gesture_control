@@ -176,10 +176,10 @@ while True:
             if len(pose_boxes) > final_pose_index: 
                 coordi_pose=pose_boxes[final_pose_index].xyxy[0]
                 px1, py1, px2, py2= map(int, coordi_pose[:4])      
-                cv2.putText(pose_color_image, "left", (px1, py1+10), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7, (0, 255, 0), 2, cv2.LINE_4)
-                cv2.putText(pose_color_image, "right", (px2, py2), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7, (0, 255, 0), 2, cv2.LINE_4) 
+                # cv2.putText(pose_color_image, "left", (px1, py1+10), cv2.FONT_HERSHEY_SIMPLEX,
+                #     0.7, (0, 255, 0), 2, cv2.LINE_4)
+                # cv2.putText(pose_color_image, "right", (px2, py2), cv2.FONT_HERSHEY_SIMPLEX,
+                #     0.7, (0, 255, 0), 2, cv2.LINE_4) 
             #Get keypoints
             for i, k in enumerate(keypoints[final_pose_index]):
                 for kp_index, ap_index in keypoint_indices.items():
@@ -267,7 +267,7 @@ while True:
             #     print(f"Hand: {ratio_hand}",f"Ratio: {arm_ratio:.3f}",f"angle: {arm_angle:.3f}")
             
         #Check out of boundary box
-        if (box_cy < y1 or box_cy > y2 or box_cx < x1 or box_cx > x2):
+        if (box_cy < py1 or box_cy > py2 or box_cx < px1 or box_cx > px2):
             print("Misrecognition hands out of the box.\n")
             final_hand = 'N'
             
