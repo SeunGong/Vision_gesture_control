@@ -34,8 +34,8 @@ def calculate_angle_arm(a, b, c):
 model_pose = YOLO("yolov8m-pose")
 model_hands = YOLO("240503.pt")
 
-source_folder = r"C:\Users\eofeh\Desktop\Model\datasets\valid\images"
-folder_path  = r"C:\Users\eofeh\Desktop\Model\datasets\valid\labels"
+source_folder = r"C:\Users\eofeh\Desktop\Model\datasets\test\images"
+folder_path  = r"C:\Users\eofeh\Desktop\Model\datasets\test\labels"
 
 predict_folder = os.path.join(source_folder, '../Predicted')
 mismatch_folder = os.path.join(source_folder, '../Mismatch_image')  # 불일치 이미지를 저장할 폴더
@@ -133,8 +133,8 @@ for subdir, dirs, files in os.walk(source_folder):
             arm_ratio=None
 
             active_hand = None
-            shape_hand = None
-            ratio_hand = 'N'
+            shape_hand = 6
+            ratio_hand = 6
             final_hand = 'N'
 
             array_keypoints = np.zeros((keypoints_count, 2))  # [RS,RE,RW,LS,LE,LW,]
@@ -144,8 +144,7 @@ for subdir, dirs, files in os.walk(source_folder):
                 for r in results_hands:
                     boxes = r.boxes  # Boxes class
                     
-                    #Check front hand
-                    for number_box, box in enumerate(boxes):  
+                    for box in boxes:  
                         b = box.xyxy[0].to('cpu').detach().numpy().copy()
                         x1, y1, x2, y2 = map(int, b[:4])# Box left top and right bottom coordinate
                         box_cx, box_cy = int((x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
@@ -157,7 +156,8 @@ for subdir, dirs, files in os.walk(source_folder):
                         shape_hand = shape_hand[0]
 
             #################### Predict pose ####################
-            results_pose = model_pose(color_image, conf=0.8, verbose=False)  # Predict pose
+            # results_pose = model_pose(color_image, conf=0.8, verbose=False)  # Predict pose
+            results_pose = model_pose(color_image, verbose=False)  # Predict pose
             pose_color_image = results_pose[0].plot()  # Draw skelton to pose image
 
             if results_pose is not None:
@@ -173,10 +173,6 @@ for subdir, dirs, files in os.walk(source_folder):
                         b = box.xyxy[0].to('cpu').detach().numpy().copy()
                         px1, py1, px2, py2 = map(int, b[:4])
 
-                    #Check out of boundary box
-                    if (box_cy < py1 or box_cy > py2 or box_cx < px1 or box_cx > px2):
-                        continue
-                        
                     #Get keypoints
                     for i, k in enumerate(keypoints):
                         for kp_index, ap_index in keypoint_indices.items():
@@ -195,7 +191,9 @@ for subdir, dirs, files in os.walk(source_folder):
             if box_cx is not None and box_cy is not None:
                 euclidean_whr = np.sqrt((box_cx - int(array_keypoints[2][0]))**2 + (box_cy - int(array_keypoints[2][1]))**2)
                 euclidean_whl = np.sqrt((box_cx - int(array_keypoints[5][0]))**2 + (box_cy - int(array_keypoints[5][1]))**2)
-                
+                #Check out of boundary box
+                if (box_cy < py1 or box_cy > py2 or box_cx < px1 or box_cx > px2):
+                    continue
                 # Activate hand selection
                 if euclidean_whl is not None and euclidean_whr is not None:  
                     if (euclidean_whl > euclidean_whr):
@@ -219,32 +217,37 @@ for subdir, dirs, files in os.walk(source_folder):
                             
                     #Check arm_ratio and arm_angle
                     if(shape_hand=='S'):
-                        ratio_hand=shape_hand
+                        ratio_hand=0
                     elif(arm_ratio is not None and arm_ratio<0.3):
                         if(shape_hand=='T'):
-                            ratio_hand=shape_hand
+                            ratio_hand=2
                         elif(shape_hand=='Y'):  
-                            ratio_hand=shape_hand
+                            ratio_hand=1
                     elif(arm_ratio is not None and arm_ratio>0.45):
                         if(shape_hand=='F'):
-                            ratio_hand=shape_hand
+                            ratio_hand=3
                         elif(shape_hand=='B'and arm_angle<120):
-                            ratio_hand=shape_hand
+                            ratio_hand=4
                         elif(shape_hand=='P'):
-                            ratio_hand=shape_hand
+                            ratio_hand=5
 
                 gestures.append(ratio_hand) #add predicted gesture to gestures array
                 file_names.append(file)
-                cv2.imwrite(target_path, color_image)
+                cv2.imwrite(target_path, pose_color_image)
         #predict----------------------------------------------------------
                        
 pred_labels = np.array(gestures)  # 모델과 post-processing을 통해 얻은 예측 결과
 true_labels = np.array(labels)
-
+with open('predict.txt', 'w') as file:
+    for number in pred_labels:
+        file.write(str(number) + '\n')
+with open('true.txt', 'w') as file:
+    for number in true_labels:
+        file.write(str(number) + '\n')
 with open('mismatch.txt', 'w') as file:
     for index, (pred_label, true_label) in enumerate(zip(pred_labels, true_labels)):
         if pred_label != true_label:
-            file.write(f"{index}: {file_names[index]}: {pred_label} != {true_label}\n")
+            file.write(f"{index}: {file_names[index]}: {pred_label} != {true_label},{arm_ratio},{arm_angle}\n")
 
             # 불일치하는 이미지를 별도 폴더에 저장
             source_path = os.path.join(predict_folder, file_names[index])  # 이미지 파일 경로 재구성
