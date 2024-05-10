@@ -102,117 +102,141 @@ for subdir, dirs, files in os.walk(source_folder):
             image = cv2.imread(source_path)
             color_image = np.asanyarray(image)
             
-            #predict----------------------------------------------------------
-            angle_arm = 0
-            count_gesture=0
+        #predict----------------------------------------------------------
+            
+            #MACRO
+            count_gesture = 0
 
-            box_cx, box_cy = None, None  # predict box
-            box_pose_cx, box_pose_cy = None, None  # predict box
+            keypoints_count = 9  # Number of array for pose coordinate
+            keypoint_indices = {
+                0: 6,  # Nose
+                6: 0,  # Right shoulder
+                8: 1,  # Right elbow
+                10: 2,  # Right wrist
+                12: 7,  # Right hip
+                5: 3,  # Left shoulder
+                7: 4,  # Left elbow
+                9: 5,  # Left wrist
+                11: 8,  # Left hip
+            }
+
+            #Reset variable 
+            box_cx, box_cy = None, None  # hands box center
+            cur_cx, cur_cy = None, None
+            # pbox_cx, pbox_cy = None, None  # pointing box center
+            lsx, lsy,rsx, rsy = None, None, None, None  # shoulder x,y
+            lhy, rhy = None, None  # hip y
+            euclidean_whl, euclidean_whr = None, None  # Distance both side winkle-hands
+            sb_sub,sh_sub=None,None
+
+            arm_angle = None
+            arm_ratio=None
+
+            active_hand = None
+            shape_hand = None
+            ratio_hand = 'N'
+            final_hand = 'N'
+
+            array_keypoints = np.zeros((keypoints_count, 2))  # [RS,RE,RW,LS,LE,LW,]
             
-            # results_hands = model_hands(color_image, conf=0.8, verbose=False)  # Predict hands
-            results_hands = model_hands(color_image, verbose=False)  # Predict hands
-            
-            hands = 'N'
-            
+            results_hands = model_hands(color_image, conf=0.8, verbose=False)  
             if results_hands is not None:
                 for r in results_hands:
-                    boxes = r.boxes
-                    for box in boxes:
-                        
+                    boxes = r.boxes  # Boxes class
+                    
+                    #Check front hand
+                    for number_box, box in enumerate(boxes):  
                         b = box.xyxy[0].to('cpu').detach().numpy().copy()
-                        c = box.cls
-                        x1, y1, x2, y2 = map(int, b[:4])
-                        box_cx, box_cy = int(
-                            (x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
-                        # hands = model_hands.names[int(c)]
-                        # hands = int(c)
-                        gesture = int(c)
+                        x1, y1, x2, y2 = map(int, b[:4])# Box left top and right bottom coordinate
+                        box_cx, box_cy = int((x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
+                        shape_hand = model_hands.names[int(box.cls)]
 
-                        # Drawing bounding box
-                        cv2.rectangle(color_image, (x1, y1), (x2, y2),
-                                        (0, 0, 255), thickness=2, lineType=cv2.LINE_4)
-                        cv2.putText(color_image,  model_hands.names[int(c)], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX,
-                                    0.7, (0, 0, 255), 2, cv2.LINE_4)
+                        cv2.rectangle(color_image, (x1, y1), (x2, y2),(0, 0, 255), thickness=2, lineType=cv2.LINE_4)
+                        cv2.putText(color_image, shape_hand, (box_cx, box_cy), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                            
+                        shape_hand = shape_hand[0]
 
-            results_pose = model_pose(color_image, conf=0.8, verbose=False) # Predict coordinate_pose
-            color_image = results_pose[0].plot()
-            
-            count_point = 6  # number of coordinate_pose
-            
-            distance_whl, distance_whr = None, None # Distance between winkle-hands
+            #################### Predict pose ####################
+            results_pose = model_pose(color_image, conf=0.8, verbose=False)  # Predict pose
+            pose_color_image = results_pose[0].plot()  # Draw skelton to pose image
 
-            coordinate_pose = np.zeros((count_point, 2))
             if results_pose is not None:
                 for r in results_pose:
                     keypoints = r.keypoints
                     pose_boxes = r.boxes
-                    if len(pose_boxes.xyxy) > 0:
-                        b = pose_boxes.xyxy[0].to('cpu').detach().numpy().copy()
+                    
+                    min_pose_depth = float('inf')
+                    final_pose_index = 0
+
+                    #Check front pose
+                    for number_pose_box, box in enumerate(pose_boxes): 
+                        b = box.xyxy[0].to('cpu').detach().numpy().copy()
                         px1, py1, px2, py2 = map(int, b[:4])
-                    
+
+                    #Check out of boundary box
+                    if (box_cy < py1 or box_cy > py2 or box_cx < px1 or box_cx > px2):
+                        continue
+                        
+                    #Get keypoints
                     for i, k in enumerate(keypoints):
-                        if k.xy[0].size(0) > 6:  # Ensure there are enough elements
-                            coordinate_pose[0] = k.xy[0][6].cpu().numpy()
-                            value_srx = int(coordinate_pose[0][0]) # Right shoulder
-                            
-                        if k.xy[0].size(0) > 8:  
-                            coordinate_pose[1] = k.xy[0][8].cpu().numpy()  # Right elbow
-                            
-                        if k.xy[0].size(0) > 10:  
-                            coordinate_pose[2] = k.xy[0][10].cpu().numpy() # Right wrist
+                        for kp_index, ap_index in keypoint_indices.items():
+                            if k.xy[0].size(0) > kp_index:
+                                array_keypoints[ap_index] = k.xy[0][kp_index].cpu().numpy()
+                    #put value in variable
+                    lsx = int(array_keypoints[3][0]) 
+                    lsy = int(array_keypoints[3][1])  
+                    rsx = int(array_keypoints[0][0])
+                    rsy = int(array_keypoints[0][1])
+                    rhy = int(array_keypoints[7][1])
+                    lhy = int(array_keypoints[8][1])
+            ###################################################################################
 
-                            if box_cx is not None:
-                                distance_whr = np.sqrt((box_cx - int(coordinate_pose[2][0]))**2 + (box_cy - int(
-                                    coordinate_pose[2][1]))**2)
-                        if k.xy[0].size(0) > 5:
-                            coordinate_pose[3] = k.xy[0][5].cpu().numpy()
-                            value_slx = int(coordinate_pose[3][0]) # Left shoulder
-
-                        if k.xy[0].size(0) > 7:
-                            coordinate_pose[4] = k.xy[0][7].cpu().numpy() # Left elbow
-
-                        if k.xy[0].size(0) > 9:
-                            coordinate_pose[5] = k.xy[0][9].cpu().numpy() # Left wrist
-                            
-                            if box_cx is not None:
-                                distance_whl = np.sqrt((box_cx - int(coordinate_pose[5][0]))**2 + (
-                                    box_cy - int(coordinate_pose[5][1]))**2)
-
-                    if distance_whl is not None and distance_whr is not None: #  Activate hand selection
-                        if (distance_whl > distance_whr):
-                            active_hands = 'RIGHT'
-                            angle_arm = calculate_angle_arm(
-                                coordinate_pose[0], coordinate_pose[1], coordinate_pose[2])
-                        elif (distance_whl < distance_whr):
-                            active_hands = 'LEFT'
-                            angle_arm = calculate_angle_arm(
-                                coordinate_pose[3], coordinate_pose[4], coordinate_pose[5])
-                    
-            """ condition           
-            # conditions = {
-            #     0: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
-            #     1: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
-            #     2: lambdazz angle_arm: angle_arm > 0 and angle_arm < 180,
-            #     3: lambda angle_arm: angle_arm > 0 and angle_arm < 180,
-            #     4: lambda angle_arm: angle_arm > 80 and angle_arm < 140, #next backwar and turn
-            #     5: lambda angle_arm: angle_arm > 150 and angle_arm < 180,
-            # }#0'STOP', 1'YOU', 2'TURN', 3'FORWARD', 4'BACKWARD', 5'POINTING'
-
-            # if conditions.get(hands, lambda x: False)(angle_arm):
-            #     gesture = hands
-            # else:
-            #     gesture = 6
-    
-             """
+            #Distinction between left and right hands
             if box_cx is not None and box_cy is not None:
-                        if(box_cy<y1 or box_cy>y2 or box_cx<x1 or box_cx>x2):
-                            gesture=6
-            else:
-                gesture=6
-            gestures.append(gesture) #add predicted gesture to gestures array
-            file_names.append(file)
-            cv2.imwrite(target_path, color_image)
-            #predict----------------------------------------------------------
+                euclidean_whr = np.sqrt((box_cx - int(array_keypoints[2][0]))**2 + (box_cy - int(array_keypoints[2][1]))**2)
+                euclidean_whl = np.sqrt((box_cx - int(array_keypoints[5][0]))**2 + (box_cy - int(array_keypoints[5][1]))**2)
+                
+                # Activate hand selection
+                if euclidean_whl is not None and euclidean_whr is not None:  
+                    if (euclidean_whl > euclidean_whr):
+                        active_hand = 'RIGHT'
+                        arm_angle = calculate_angle_arm(array_keypoints[0], array_keypoints[1], array_keypoints[2])
+                    elif (euclidean_whl < euclidean_whr):
+                        active_hand = 'LEFT'
+                        arm_angle = calculate_angle_arm(array_keypoints[3], array_keypoints[4], array_keypoints[5])
+
+                    # Get ratio between shoulder-hip and shoulder-box
+                    if (active_hand == 'RIGHT' and rhy is not None and rsy is not None):
+                        if(rhy>0 and rsy>0):
+                            sh_sub = rhy-rsy
+                            sb_sub = abs(box_cy-rsy)
+                            arm_ratio=sb_sub/sh_sub
+                    elif (active_hand == 'LEFT' and lhy is not None and lsy is not None):
+                        if(lhy>0 and lsy>0):
+                            sh_sub = lhy-lsy
+                            sb_sub = abs(box_cy-lsy)
+                            arm_ratio=sb_sub/sh_sub
+                            
+                    #Check arm_ratio and arm_angle
+                    if(shape_hand=='S'):
+                        ratio_hand=shape_hand
+                    elif(arm_ratio is not None and arm_ratio<0.3):
+                        if(shape_hand=='T'):
+                            ratio_hand=shape_hand
+                        elif(shape_hand=='Y'):  
+                            ratio_hand=shape_hand
+                    elif(arm_ratio is not None and arm_ratio>0.45):
+                        if(shape_hand=='F'):
+                            ratio_hand=shape_hand
+                        elif(shape_hand=='B'and arm_angle<120):
+                            ratio_hand=shape_hand
+                        elif(shape_hand=='P'):
+                            ratio_hand=shape_hand
+
+                gestures.append(ratio_hand) #add predicted gesture to gestures array
+                file_names.append(file)
+                cv2.imwrite(target_path, color_image)
+        #predict----------------------------------------------------------
                        
 pred_labels = np.array(gestures)  # 모델과 post-processing을 통해 얻은 예측 결과
 true_labels = np.array(labels)
