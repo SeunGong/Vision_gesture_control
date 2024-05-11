@@ -37,10 +37,13 @@ model_pose = YOLO("yolov8m-pose")
 model_hands = YOLO("240503.pt")
 
 #MACRO
-threshold_waving = 40  # Threshold for waving
+threshold_waving = 60  # Threshold for waving
 count_gesture = 0
-weight_direction=1
-DISTANCE_MAX=1
+weight_direction=0.005
+weight_depth=1
+DEPTH_DISTANCE_MAX=2
+MOTOR_ENCODER =4096
+MOTOR_DISTANCE=0.534
 #Init variable
 pre_stop_cx, pre_stop_cy = None, None # Previous center coordinates
 pre_gesture = 'N'
@@ -81,7 +84,7 @@ while True:
     
     depth_nose = None
     depth_hand = None
-    min_pose_depth = None
+    pose_depth = None
 
     arm_angle = None
     arm_ratio=None
@@ -91,6 +94,9 @@ while True:
     ratio_hand = 'N'
     final_hand = 'N'
     
+    box_depth=None
+    
+    motor_L,motor_R=0,0
     array_keypoints = np.zeros((keypoints_count, 2))  # [RS,RE,RW,LS,LE,LW,]
     
     #################### Predict hands ####################
@@ -99,7 +105,7 @@ while True:
         for r in results_hands:
             boxes = r.boxes  # Boxes class
             final_hands_index = 0
-            min_box_depth = float('inf')
+            box_depth = float('inf')
             list_depth_boxes = [0] * len(boxes)
             list_shape_hands = [''] * len(boxes)
             x1, y1, x2, y2=0,0,0,0
@@ -114,8 +120,8 @@ while True:
                 list_shape_hands[number_box] = model_hands.names[int(box.cls)]
                 
                 # Drawing bounding box
-                if (depth_box!=0 and depth_box < min_box_depth):
-                    min_box_depth = depth_box
+                if (depth_box!=0 and depth_box < box_depth):
+                    box_depth = depth_box
                     final_hands_index = number_box
 
             #select active hand
@@ -129,7 +135,7 @@ while True:
                 # cv2.putText(color_image, f"Depth: {depth_hand}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
                 cv2.putText(color_image, shape_hand, (box_cx, box_cy), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
                 # print("find min hands:",shape_hand)
-                # print(f"Closest Hand Gesture: {shape_hand} at Index {final_hands_index} with Depth {min_box_depth}")
+                # print(f"Closest Hand Gesture: {shape_hand} at Index {final_hands_index} with Depth {box_depth}")
                     #convert 1 character
                     
                 #Get hand shape        
@@ -148,7 +154,7 @@ while True:
                 #     # pbox_cx, pbox_cy = box_cx, box_cy
                 else:
                     shape_hand = shape_hand[0]
-
+                
     #################### Predict pose ####################
     results_pose = model_pose(color_image, conf=0.8, verbose=False)  # Predict pose
     pose_color_image = results_pose[0].plot()  # Draw skelton to pose image
@@ -158,7 +164,7 @@ while True:
             keypoints = r.keypoints
             pose_boxes = r.boxes
             
-            min_pose_depth = float('inf')
+            pose_depth = float('inf')
             final_pose_index = 0
 
             #Check front pose
@@ -169,8 +175,8 @@ while True:
                     (x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)  # Get box center coordinate
                 depth_pose_box = depth_frame.get_distance(pose_box_cx, pose_box_cy)
                 
-                if depth_pose_box < min_pose_depth:
-                    min_pose_depth = depth_pose_box
+                if depth_pose_box < pose_depth:
+                    pose_depth = depth_pose_box
                     final_pose_index = number_pose_box
             #Check index count more than pose count 
             if len(pose_boxes) > final_pose_index: 
@@ -234,24 +240,29 @@ while True:
                 elif(shape_hand=='B'and arm_angle<120):
                     ratio_hand=shape_hand
                 elif(shape_hand=='P'):
-                    if(min_pose_depth>DISTANCE_MAX):
-                        min_pose_depth=DISTANCE_MAX
-                    distance_depth=min_pose_depth*weight_direction
+                    if(box_depth>DEPTH_DISTANCE_MAX):
+                        box_depth=DEPTH_DISTANCE_MAX
+                    distance_depth=box_depth*weight_depth
                     if(box_cx>320):
-                        move_direction = 'R'
-                        weight_direction=(box_cx-320)/320*1.0
-                        motor_L=distance_depth*weight_direction
+                        box_center_sub=(box_cx-320)
+                        # move_direction = 'R'
+                        motor_L=distance_depth+(box_center_sub*weight_direction)
                         motor_R=distance_depth
                     elif(box_cx<320):
-                        move_direction = 'L'
-                        weight_direction=(320-box_cx)/320*1.0
+                        box_center_sub=(320-box_cx)
+                        # move_direction = 'L'
                         motor_L=distance_depth
-                        motor_R=distance_depth*weight_direction
+                        motor_R=distance_depth+(box_center_sub*weight_direction)
                     else:
                         motor_L=distance_depth
                         motor_R=distance_depth
-
+                    motor_L=(int)(motor_L*100)
+                    motor_R=(int)(motor_R*100)
+                    # motor_encoder_L=MOTOR_ENCODER*motor_L/MOTOR_DISTANCE  
+                    # motor_encoder_R=MOTOR_ENCODER*motor_R/MOTOR_DISTANCE
                     ratio_hand=shape_hand
+                    # print(f"L:{motor_L:.2f}, R:{motor_R:.2f}, DEPTH:{box_depth:.2f},E_L:{motor_encoder_L},E_R:{motor_encoder_R}")
+                    
                     # if active_hand == 'RIGHT' and euclidean_whr is not None and rsx is not None:
                     #     if box_cx > rsx:
                     #         ratio_hand = 'R'
@@ -266,15 +277,14 @@ while True:
             # if(arm_ratio is not None and arm_angle is not None):
             #     print(f"Hand: {ratio_hand}",f"Ratio: {arm_ratio:.3f}",f"angle: {arm_angle:.3f}")
             
-        #Check out of boundary box
-        if (box_cy < py1 or box_cy > py2 or box_cx < px1 or box_cx > px2):
-            print("Misrecognition hands out of the box.\n")
-            final_hand = 'N'
+        # #Check out of boundary box
+        # if (box_cy < py1 or box_cy > py2 or box_cx < px1 or box_cx > px2):
+        #     print("Misrecognition hands out of the box.\n")
+        #     final_hand = 'N'
             
         #3times validation
         this_hand = ratio_hand
-        if (this_hand == 'W'):
-        # if (this_hand == 'W' or this_hand =='R' or this_hand=='L'):
+        if (this_hand == 'W'or this_hand =='P'):
             final_hand = this_hand
         elif (this_hand == pre_gesture):
             count_gesture += 1
@@ -282,8 +292,10 @@ while True:
                 count_gesture = 0
                 final_hand = this_hand
                 
-        if final_hand != 'N':
-            print(final_hand)
+        if final_hand=='P':
+            print(f"<L{motor_L}R{motor_R}>")
+        elif final_hand != 'N':
+            print(f"<{final_hand}>")
             # ser.write(str(final_hand).encode('utf-8'))
             final_hand = 'N'
         else:
