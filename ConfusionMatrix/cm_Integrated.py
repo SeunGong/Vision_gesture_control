@@ -34,22 +34,22 @@ def calculate_angle_arm(a, b, c):
 model_pose = YOLO("yolov8m-pose")
 model_hands = YOLO("240503.pt")
 
-source_folder = r"C:\Users\eofeh\Desktop\Model\datasets\test\images"
-folder_path  = r"C:\Users\eofeh\Desktop\Model\datasets\test\labels"
+label_folder  = r"C:\Users\eofeh\Desktop\Model\datasets\test\labels"
+image_folder = r"C:\Users\eofeh\Desktop\Model\datasets\test\images"
 
-predict_folder = os.path.join(source_folder, '../Predicted')
-mismatch_folder = os.path.join(source_folder, '../Mismatch_image')  # 불일치 이미지를 저장할 폴더
+predict_folder = os.path.join(image_folder, '../Predicted')
+mismatch_folder = os.path.join(image_folder, '../Mismatch_image')  # 불일치 이미지를 저장할 폴더
 
 # 폴더 생성을 위한 함수
-def create_folder(folder_path):
+def create_folder(label_folder):
     try:
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-            print(f"Folder created: {folder_path}")
+        if not os.path.exists(label_folder):
+            os.makedirs(label_folder)
+            print(f"Folder created: {label_folder}")
         else:
-            print(f"Folder already exists: {folder_path}")
+            print(f"Folder already exists: {label_folder}")
     except Exception as e:
-        print(f"Failed to create folder {folder_path}. Error: {str(e)}")
+        print(f"Failed to create folder {label_folder}. Error: {str(e)}")
 
 create_folder(predict_folder)
 create_folder(mismatch_folder)
@@ -57,18 +57,58 @@ create_folder(mismatch_folder)
 # 지원하는 이미지 확장자 목록
 image_extensions = ['.jpg', '.png', '.jpeg']  # 이미지 파일 확장자
 
+label_files = []
 labels=[]
 gestures=[]
 angles=[]
 ratios=[]
 file_names=[]
 
-for filename in os.listdir(folder_path):
-    # 파일 확장자가 .txt인 경우
-    if filename.endswith('.txt'):
-        # 파일 전체 경로 구성
-        file_path = os.path.join(folder_path, filename)
+# for filename in os.listdir(label_folder):
+#     # 파일 확장자가 .txt인 경우
+#     if filename.endswith('.txt'):
+#         # 파일 전체 경로 구성
+#         file_path = os.path.join(label_folder, filename)
         
+#         # 파일 열기
+#         with open(file_path, 'r') as file:
+#             # 파일에서 첫 번째 줄 읽기
+#             first_line = file.readline().strip()
+            
+#             # 첫 번째 줄의 첫 번째 값 저장 (공백으로 구분된 경우)
+#             label = first_line.split()[0]
+#             labels.append(int(label))
+            
+# for subdir, dirs, files in os.walk(image_folder):
+#     # 현재 순회 중인 폴더가 predict_folder 건너뛰기
+#     if subdir.startswith(predict_folder):
+#         continue
+
+#     for file in files:
+#         # 파일 확장자가 이미지 확장자 목록에 있는지 확인
+#         if any(file.lower().endswith(ext) for ext in image_extensions):
+#             # 이미지 파일의 원본 경로
+#             source_path = os.path.join(subdir, file)
+#             # 이미지 파일의 새 경로 (대상 폴더)
+#             target_path = os.path.join(predict_folder, file)
+
+#             # 파일명 충돌 방지
+#             if os.path.exists(target_path):
+#                 base, extension = os.path.splitext(file)
+#                 counter = 1
+#                 while os.path.exists(target_path):
+#                     target_path = os.path.join(
+#                         predict_folder, f"{base}_{counter}{extension}")
+#                     counter += 1
+
+#             image = cv2.imread(source_path)
+#             color_image = np.asanyarray(image)
+for filename in os.listdir(label_folder):
+    
+    if filename.endswith('.txt'):
+        label_files.append(os.path.splitext(filename)[0]) #save file name on label_files list
+        
+        file_path = os.path.join(label_folder, filename)
         # 파일 열기
         with open(file_path, 'r') as file:
             # 파일에서 첫 번째 줄 읽기
@@ -77,16 +117,18 @@ for filename in os.listdir(folder_path):
             # 첫 번째 줄의 첫 번째 값 저장 (공백으로 구분된 경우)
             label = first_line.split()[0]
             labels.append(int(label))
-            
-for subdir, dirs, files in os.walk(source_folder):
-    # 현재 순회 중인 폴더가 target_folder면 건너뛰기
+        
+for subdir, dirs, files in os.walk(image_folder):
     if subdir.startswith(predict_folder):
         continue
-
+    count=0
+    count1=0
+    count2=0
     for file in files:
-        # 파일 확장자가 이미지 확장자 목록에 있는지 확인
-            
-        if any(file.lower().endswith(ext) for ext in image_extensions):
+        count+=1
+        print(count)
+        file_without_extension = os.path.splitext(file)[0]
+        if any(file.lower().endswith(ext) for ext in image_extensions) and file_without_extension in label_files:
             # 이미지 파일의 원본 경로
             source_path = os.path.join(subdir, file)
             # 이미지 파일의 새 경로 (대상 폴더)
@@ -97,13 +139,14 @@ for subdir, dirs, files in os.walk(source_folder):
                 base, extension = os.path.splitext(file)
                 counter = 1
                 while os.path.exists(target_path):
-                    target_path = os.path.join(
-                        predict_folder, f"{base}_{counter}{extension}")
+                    target_path = os.path.join(predict_folder, f"{base}_{counter}{extension}")
                     counter += 1
 
+            # 해당 이미지 로드
             image = cv2.imread(source_path)
             color_image = np.asanyarray(image)
-            
+            count1+=1
+            print(f"Image loaded and processed: {source_path}",count1)    
         #predict----------------------------------------------------------
             
             #MACRO
@@ -170,10 +213,13 @@ for subdir, dirs, files in os.walk(source_folder):
                     min_pose_depth = float('inf')
                     final_pose_index = 0
 
+                    # # #Check front pose
+                    # for number_pose_box, box in enumerate(pose_boxes): 
+                    #     b = box.xyxy[0].to('cpu').detach().numpy().copy()
+                    #     px1, py1, px2, py2 = map(int, b[:4])
                     #Check front pose
-                    for number_pose_box, box in enumerate(pose_boxes): 
-                        b = box.xyxy[0].to('cpu').detach().numpy().copy()
-                        px1, py1, px2, py2 = map(int, b[:4])
+                    b = pose_boxes.xyxy[0].to('cpu').detach().numpy().copy()
+                    px1, py1, px2, py2 = map(int, b[:4])
 
                     #Get keypoints
                     for i, k in enumerate(keypoints):
@@ -194,8 +240,7 @@ for subdir, dirs, files in os.walk(source_folder):
                 euclidean_whr = np.sqrt((box_cx - int(array_keypoints[2][0]))**2 + (box_cy - int(array_keypoints[2][1]))**2)
                 euclidean_whl = np.sqrt((box_cx - int(array_keypoints[5][0]))**2 + (box_cy - int(array_keypoints[5][1]))**2)
                 #Check out of boundary box
-                if (box_cy < py1 or box_cy > py2 or box_cx < px1 or box_cx > px2):
-                    continue
+                
                 # Activate hand selection
                 if euclidean_whl is not None and euclidean_whr is not None:  
                     if (euclidean_whl > euclidean_whr):
@@ -211,34 +256,65 @@ for subdir, dirs, files in os.walk(source_folder):
                             sh_sub = rhy-rsy
                             sb_sub = abs(box_cy-rsy)
                             arm_ratio=sb_sub/sh_sub
+ 
+                            if(shape_hand=='P' and arm_ratio>0.45):
+                                ratio_hand=5
+                            elif(shape_hand=='Y'):
+                                ratio_hand=1
                     elif (active_hand == 'LEFT' and lhy is not None and lsy is not None):
                         if(lhy>0 and lsy>0):
                             sh_sub = lhy-lsy
                             sb_sub = abs(box_cy-lsy)
                             arm_ratio=sb_sub/sh_sub
-                            
-                    #Check arm_ratio and arm_angle
+                            if(shape_hand=='P' and arm_ratio>0.45):
+                                ratio_hand=5
+                            elif(shape_hand=='Y'):
+                                ratio_hand=1
+                                
                     if(shape_hand=='S'):
                         ratio_hand=0
-                    elif(arm_ratio is not None and arm_ratio<0.3):
-                        if(shape_hand=='T'):
-                            ratio_hand=2
-                        elif(shape_hand=='Y'):  
-                            ratio_hand=1
-                    elif(arm_ratio is not None and arm_ratio>0.45):
-                        if(shape_hand=='F'):
-                            ratio_hand=3
-                        elif(shape_hand=='B'and arm_angle<120):
-                            ratio_hand=4
-                        elif(shape_hand=='P'):
-                            ratio_hand=5
-
-                gestures.append(ratio_hand) #add predicted gesture to gestures array
-                angles.append(arm_angle) #add predicted gesture to gestures array
-                ratios.append(arm_ratio) #add predicted gesture to gestures array
-                
-                file_names.append(file)
-                cv2.imwrite(target_path, pose_color_image)
+                    elif(shape_hand=='T'):
+                        ratio_hand=2
+                    elif(shape_hand=='F'):
+                        ratio_hand=3
+                    elif(shape_hand=='B'):
+                        ratio_hand=4    
+                    #Check arm_ratio and arm_angle
+                    # if(shape_hand=='S'):
+                    #     ratio_hand=0
+                    # elif(arm_ratio is not None and arm_ratio<0.3):
+                    #     if(shape_hand=='T'):
+                    #         ratio_hand=2
+                    #     elif(shape_hand=='Y'):  
+                    #         ratio_hand=1
+                    # elif(arm_ratio is not None and arm_ratio>0.45):
+                    #     if(shape_hand=='F'):
+                    #         ratio_hand=3
+                    #     elif(shape_hand=='B'and arm_angle<120):
+                    #         ratio_hand=4
+                    #     elif(shape_hand=='P'):
+                    #         ratio_hand=5
+                    # if(shape_hand=='S'):
+                    #     ratio_hand=0
+                    # elif(shape_hand=='T'):
+                    #     ratio_hand=2
+                    # elif(shape_hand=='F'):
+                    #     ratio_hand=3
+                    # elif(shape_hand=='B'):
+                    #     ratio_hand=4
+                    # elif(shape_hand=='P' and arm_ratio>0.45):
+                    #     ratio_hand=5
+                    # elif(shape_hand=='Y'):
+                    #     ratio_hand=1
+                # if (box_cy < py1 or box_cy > py2 or box_cx < px1 or box_cx > px2):
+                #     ratio_hand=6
+            count2+=1
+            gestures.append(ratio_hand) #add predicted gesture to gestures array
+            print(count2)
+                # angles.append(arm_angle) #add predicted gesture to gestures array
+                # ratios.append(arm_ratio) #add predicted gesture to gestures array
+            file_names.append(file)
+            # cv2.imwrite(target_path, pose_color_image)
         #predict----------------------------------------------------------
                        
 pred_labels = np.array(gestures)  # 모델과 post-processing을 통해 얻은 예측 결과
@@ -246,6 +322,12 @@ true_labels = np.array(labels)
 angle_labels = np.array(angles)
 ratio_labels = np.array(ratios)
 
+# with open('labels.txt', 'w') as file:
+#     for number in labels:
+#         file.write(str(number) + '\n')
+# with open('gestures.txt', 'w') as file:
+#     for number in gestures:
+#         file.write(str(number) + '\n')
 with open('predict.txt', 'w') as file:
     for number in pred_labels:
         file.write(str(number) + '\n')
@@ -253,20 +335,18 @@ with open('true.txt', 'w') as file:
     for number in true_labels:
         file.write(str(number) + '\n')
 with open('mismatch.txt', 'w') as file:
-    for index, (pred_label, true_label,angle_labels,ratio_labels) in enumerate(zip(pred_labels, true_labels,angle_labels,ratio_labels)):
+    for index, (pred_label, true_label) in enumerate(zip(pred_labels, true_labels)):
         if pred_label != true_label:
-            file.write(f"{index}: {file_names[index]}: {pred_label} != {true_label},{arm_ratio},{arm_angle}\n")
+            file.write(f"{index}: {file_names[index]}: {pred_label} != {true_label}\n")
 
             # 불일치하는 이미지를 별도 폴더에 저장
             source_path = os.path.join(predict_folder, file_names[index])  # 이미지 파일 경로 재구성
             target_mismatch_path = os.path.join(mismatch_folder, f"mismatch_{file_names[index]}")
             shutil.copy(source_path, target_mismatch_path)
 
-"""draw confusion matrix
 cm = confusion_matrix(true_labels, pred_labels, labels=[0,3,4,2,5,1,6])
-
-print(cm)
-cm=np.transpose(cm)
+# cm=np.transpose(cm)
+print(cm,'\n')
 
 # 각 열의 합으로 나누어 정규화
 T_1_normalized_by_columns = cm / cm.sum(axis=0, keepdims=True)
@@ -296,4 +376,3 @@ ax.tick_params(axis='both', which='major', labelsize=12)  # Change label size
 plt.tight_layout()
 plt.savefig('cm(integrated).png', bbox_inches = 'tight', pad_inches=0)
 plt.show()
-"""

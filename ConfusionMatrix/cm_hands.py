@@ -10,8 +10,8 @@ dataset = sv.DetectionDataset.from_yolo(r'C:\Users\eofeh\Desktop\Model\datasets\
 
 model = YOLO(r'C:\Users\eofeh\Desktop\Model\1.YOLOv8\yolo-combine\Predict\240503.pt')
 def callback(image: np.ndarray) -> sv.Detections:
-    # result = model(image, conf=0.8, verbose=False)[0]
-    result = model(image, verbose=False)[0]
+    result = model(image, conf=0.8, verbose=False)[0]
+    # result = model(image, verbose=False)[0]
     return sv.Detections.from_ultralytics(result)
 
 confusion_matrix = sv.ConfusionMatrix.benchmark(
@@ -28,9 +28,9 @@ classes=confusion_matrix.classes,
 # classis = ['STOP','YOU','TURN', 'FORWARD', 'BACKWARD', 'POINTING']
 # cm=confusion_matrix.matrix
 reordered_matrix=confusion_matrix.matrix
-reordered_matrix=np.transpose(reordered_matrix)
+# reordered_matrix=np.transpose(reordered_matrix)
 print(classes)
-print(reordered_matrix)
+print(reordered_matrix,'\n')
 # cm = cm[:-1, :-1]
 
 # print(cm)
@@ -41,7 +41,7 @@ new_order = [0, 3, 4, 2, 5, 1,6]
 reordered_matrix = reordered_matrix[new_order, :][:, new_order]
 
 # # 결과 출력
-print("reordered\n")
+print("new order")
 print(reordered_matrix)
 
 # # 각 열의 합으로 나누어 정규화
