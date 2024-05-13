@@ -4,7 +4,7 @@
 from pickle import NONE
 import cv2
 import time
-# import serial
+import serial
 import numpy as np
 import pyrealsense2 as rs
 import matplotlib.pyplot as plt
@@ -12,7 +12,7 @@ from ultralytics import YOLO
 from predict_f import calculate_angle_arm
 
 # Serial setting
-# ser = serial.Serial('/dev/ttyUSB0', 115200)
+ser = serial.Serial('/dev/ttyUSB0', 115200)
 
 # Define camera frame width,height
 W, H = 640, 480
@@ -37,17 +37,18 @@ model_pose = YOLO("yolov8m-pose")
 model_hands = YOLO("240503.pt")
 
 #MACRO
-threshold_waving = 60  # Threshold for waving
+threshold_waving = 100  # Threshold for waving
 count_gesture = 0
-weight_direction=0.005
-weight_depth=1
+weight_direction=0.004
+weight_depth=0.9
 DEPTH_DISTANCE_MAX=2
 MOTOR_ENCODER =4096
 MOTOR_DISTANCE=0.534
 #Init variable
-pre_stop_cx, pre_stop_cy = None, None # Previous center coordinates
+pre_stop_cx, pre_stop_cy = 0, 0 # Previous center coordinates
 pre_gesture = 'N'
-
+#Flag
+flag_init_stop_x=True
 
 keypoints_count = 9  # Number of array for pose coordinate
 keypoint_indices = {
@@ -142,13 +143,17 @@ while True:
                 if shape_hand == 'STOP':
                     shape_hand = shape_hand[0]
                     cur_cx, cur_cy = int((x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)  # Set current box coordinate
-                    if pre_stop_cx is not None and pre_stop_cy is not None:
-                        distance_stop = abs(cur_cx - pre_stop_cx)  # Get distance using x
-                        # print(distance_stop)
-                        if distance_stop > threshold_waving:  # Check sharply movement using only x value
-                            shape_hand = 'W'
+                    if(flag_init_stop_x==True):
+                        flag_init_stop_x=False
+                        pre_stop_cx=cur_cx
+                        
+                    # if pre_stop_cx is not None and pre_stop_cy is not None:
+                    #     distance_stop = abs(cur_cx - pre_stop_cx)  # Get distance using x
+                    #     # print(distance_stop)
+                    #     if distance_stop > threshold_waving:  # Check sharply movement using only x value
+                    #         shape_hand = 'W'
 
-                    pre_stop_cx, pre_stop_cy = cur_cx, cur_cy
+                    # pre_stop_cx, pre_stop_cy = cur_cx, cur_cy
                 # elif shape_hand == 'POINTING':
                 #     shape_hand = shape_hand[0]
                 #     # pbox_cx, pbox_cy = box_cx, box_cy
@@ -227,7 +232,19 @@ while True:
                     arm_ratio=sb_sub/sh_sub
                     
             #Check arm_ratio and arm_angle
-            if(shape_hand=='S' or shape_hand=='W'):
+            if(shape_hand=='S'):
+            # if(shape_hand=='S' or shape_hand=='W'):
+
+                if pre_stop_cx is not None and lsx is not None and rsx is not None:
+                    threshold_waving=(lsx-rsx)
+                    distance_stop = abs(cur_cx - pre_stop_cx)  # Get distance using x
+                    if distance_stop > threshold_waving:  # Check sharply movement using only x value
+                        shape_hand = 'W'
+                    # print(cur_cx,pre_stop_cx,flag_init_stop_x)
+                    # print(distance_stop,threshold_waving)
+
+                    pre_stop_cx= cur_cx
+
                 ratio_hand=shape_hand
             elif(arm_ratio is not None and arm_ratio<0.3):
                 if(shape_hand=='T'):
@@ -240,8 +257,8 @@ while True:
                 elif(shape_hand=='B'and arm_angle<120):
                     ratio_hand=shape_hand
                 elif(shape_hand=='P'):
-                    if(box_depth>DEPTH_DISTANCE_MAX):
-                        box_depth=DEPTH_DISTANCE_MAX
+                    # if(box_depth>DEPTH_DISTANCE_MAX):
+                        # box_depth=DEPTH_DISTANCE_MAX
                     distance_depth=box_depth*weight_depth
                     if(box_cx>320):
                         box_center_sub=(box_cx-320)
@@ -256,8 +273,8 @@ while True:
                     else:
                         motor_L=distance_depth
                         motor_R=distance_depth
-                    motor_L=(int)(motor_L*100)
-                    motor_R=(int)(motor_R*100)
+                    motor_L=format((int)(motor_L*100),'03')
+                    motor_R=format((int)(motor_R*100),'03')
                     # motor_encoder_L=MOTOR_ENCODER*motor_L/MOTOR_DISTANCE  
                     # motor_encoder_R=MOTOR_ENCODER*motor_R/MOTOR_DISTANCE
                     ratio_hand=shape_hand
@@ -284,7 +301,8 @@ while True:
             
         #3times validation
         this_hand = ratio_hand
-        if (this_hand == 'W'or this_hand =='P'):
+        # if (this_hand == 'W'or this_hand =='P'):
+        if (this_hand == 'W'):
             final_hand = this_hand
         elif (this_hand == pre_gesture):
             count_gesture += 1
@@ -294,9 +312,12 @@ while True:
                 
         if final_hand=='P':
             print(f"<L{motor_L}R{motor_R}>")
-        elif final_hand != 'N':
-            print(f"<{final_hand}>")
-            # ser.write(str(final_hand).encode('utf-8'))
+            # ser.write(str(f"<{final_hand}>")).encode('utf-8'))
+            ser.write(str(f"<L{motor_L}R{motor_R}>").encode('utf-8'))
+        elif final_hand != 'N'and final_hand !='P':
+            print(f"<{final_hand}0000000>")
+            
+            ser.write(str(f"<{final_hand}0000000>").encode('utf-8'))
             final_hand = 'N'
         else:
             pre_gesture = this_hand
