@@ -39,9 +39,9 @@ model_hands = YOLO("240503.pt")
 #MACRO
 threshold_waving = 100  # Threshold for waving
 count_gesture = 0
-weight_direction=0.004
+weight_direction=0.005
 weight_depth=0.9
-DEPTH_DISTANCE_MAX=2
+DEPTH_DISTANCE_MAX=4
 MOTOR_ENCODER =4096
 MOTOR_DISTANCE=0.534
 #Init variable
@@ -257,8 +257,10 @@ while True:
                 elif(shape_hand=='B'and arm_angle<120):
                     ratio_hand=shape_hand
                 elif(shape_hand=='P'):
-                    # if(box_depth>DEPTH_DISTANCE_MAX):
-                        # box_depth=DEPTH_DISTANCE_MAX
+                    if(box_depth>DEPTH_DISTANCE_MAX):
+                        box_depth=DEPTH_DISTANCE_MAX
+                    elif(box_depth<0):
+                        box_depth=0
                     distance_depth=box_depth*weight_depth
                     if(box_cx>320):
                         box_center_sub=(box_cx-320)
