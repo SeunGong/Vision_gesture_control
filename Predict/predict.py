@@ -111,7 +111,7 @@ while True:
         for r in results_hands:
             boxes = r.boxes  # Boxes class
             final_hands_index = 0
-            box_depth = float("inf")
+            active_depth_box = float("inf")
             list_depth_boxes = [0] * len(boxes)
             list_shape_hands = [""] * len(boxes)
             x1, y1, x2, y2 = 0, 0, 0, 0
@@ -124,12 +124,19 @@ while True:
                 )  # Box left top and right bottom coordinate
                 box_cx, box_cy = int((x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
                 depth_box = depth_frame.get_distance(box_cx, box_cy)
+
+                if depth_box > DEPTH_DISTANCE_MAX:
+                    depth_box = DEPTH_DISTANCE_MAX
+                elif depth_box < 0:
+                    depth_box = 0
+
                 list_depth_boxes[number_box] = depth_box
                 list_shape_hands[number_box] = model_hands.names[int(box.cls)]
 
+
                 # Drawing bounding box
-                if depth_box != 0 and depth_box < box_depth:
-                    box_depth = depth_box
+                if depth_box != 0 and depth_box < active_depth_box:
+                    active_depth_box = depth_box
                     final_hands_index = number_box
 
             # select active hand
@@ -299,11 +306,7 @@ while True:
                 elif shape_hand == "B" and arm_angle < 120:
                     ratio_hand = shape_hand
                 elif shape_hand == "P":
-                    if box_depth > DEPTH_DISTANCE_MAX:
-                        box_depth = DEPTH_DISTANCE_MAX
-                    elif box_depth < 0:
-                        box_depth = 0
-                    distance_depth = box_depth * WEIGHT_DEPTH
+                    distance_depth = active_depth_box * WEIGHT_DEPTH
                     if box_cx > 320:
                         box_center_sub = box_cx - 320
                         # move_direction = 'R'
