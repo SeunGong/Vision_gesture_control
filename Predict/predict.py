@@ -40,7 +40,7 @@ model_pose = YOLO("yolov8m-pose")
 model_hands = YOLO("240503.pt")
 
 # MACRO
-THRESHOLD_WAVING = 100  # Threshold for waving
+# THRESHOLD_WAVING = 100  # Threshold for waving
 COUNT_GESTURE = 0
 WEIGHT_DIRECTION = 0.0045
 WEIGHT_DEPTH = 0.9
@@ -292,14 +292,16 @@ while True:
                 # if(shape_hand=='S' or shape_hand=='W'):
 
                 if pre_stop_cx is not None and lsx is not None and rsx is not None:
-                    THRESHOLD_WAVING = lsx - rsx
-                    distance_stop = abs(cur_stop_cx - pre_stop_cx)  # Get distance using x
-                    if (
-                        distance_stop > THRESHOLD_WAVING
-                    ):  # Check sharply movement using only x value
+                    threshold_waving_x = lsx - rsx
+                    threshold_waving_y = 50
+                    distance_stop_x = abs(cur_stop_cx - pre_stop_cx)  # Get distance using x
+                    distance_stop_y = abs(cur_stop_cy - pre_stop_cy)
+
+                    # Check sharply movement
+                    if (distance_stop_x > threshold_waving_x / 2 and distance_stop_y < threshold_waving_y):  
                         shape_hand = "W"
                     # print(cur_stop_cx,pre_stop_cx,flag_init_stop_x)
-                    # print(distance_stop,THRESHOLD_WAVING)
+                    # print(distance_stop,threshold_waving)
 
                     pre_stop_cx = cur_stop_cx
 
