@@ -68,6 +68,8 @@ keypoint_indices = {
     11: 8,  # Left hip
 }
 
+print ("start!!!")
+
 while True:
     # Get camera frame#########################################
     frames = pipeline.wait_for_frames()
@@ -97,13 +99,15 @@ while True:
 
     active_hand = None
     shape_hand = None
-    ratio_hand = "N"
-    final_hand = "N"
+    # ratio_hand = "N"
+    # final_hand = "N"
 
     box_depth = None
 
     motor_L, motor_R = 0, 0
     array_keypoints = np.zeros((keypoints_count, 2))  # [RS,RE,RW,LS,LE,LW,]
+
+    flag_continue = 0
 
     #################### Predict active hands ####################
     results_hands = model_hands(color_image, conf=0.8, verbose=False)
@@ -177,6 +181,7 @@ while True:
                     if flag_init_stop_x == True:
                         flag_init_stop_x = False
                         pre_stop_cx = cur_stop_cx
+                        pre_stop_cy = cur_stop_cy
 
                     # if pre_stop_cx is not None and pre_stop_cy is not None:
                     #     distance_stop = abs(cur_stop_cx - pre_stop_cx)  # Get distance using x
@@ -191,7 +196,13 @@ while True:
                 else:
                     shape_hand = shape_hand[0]
             else:
+                flag_continue = 1
                 continue
+    else: 
+        continue
+
+    if flag_continue == 1:
+        continue
 
     #################### Predict pose ####################
     results_pose = model_pose(color_image, conf=0.8, verbose=False)  # Predict pose
@@ -245,144 +256,146 @@ while True:
                 rwx = int(array_keypoints[2][0])
                 rwy = int(array_keypoints[2][1])
 
+
             else:
+                flag_continue = 1
                 continue
+    else: 
+        continue
+
+    if flag_continue == 1:
+        continue
 
 
     ###############################Post-processing###################################
 
     # Distinction between left and right hands
-    if box_cx is not None and box_cy is not None:
-        euclidean_whl = np.sqrt(
-            (box_cx - lwx) ** 2
-            + (box_cy - lwy) ** 2
+    euclidean_whl = np.sqrt(
+        (box_cx - lwx) ** 2
+        + (box_cy - lwy) ** 2
+    )
+    euclidean_whr = np.sqrt(
+        (box_cx - rwx) ** 2
+        + (box_cy - rwy) ** 2
+    )
+
+    # Activate hand selection
+    if euclidean_whl < euclidean_whr:
+        active_hand = "LEFT"
+        arm_angle = calculate_angle_arm(
+            array_keypoints[3], array_keypoints[4], array_keypoints[5]
         )
-        euclidean_whr = np.sqrt(
-            (box_cx - rwx) ** 2
-            + (box_cy - rwy) ** 2
+    elif euclidean_whl > euclidean_whr:
+        active_hand = "RIGHT"
+        arm_angle = calculate_angle_arm(
+            array_keypoints[0], array_keypoints[1], array_keypoints[2]
         )
 
-        # Activate hand selection
-        if euclidean_whl is not None and euclidean_whr is not None:
-            if euclidean_whl < euclidean_whr:
-                active_hand = "LEFT"
-                arm_angle = calculate_angle_arm(
-                    array_keypoints[3], array_keypoints[4], array_keypoints[5]
-                )
-            elif euclidean_whl > euclidean_whr:
-                active_hand = "RIGHT"
-                arm_angle = calculate_angle_arm(
-                    array_keypoints[0], array_keypoints[1], array_keypoints[2]
-                )
+    # Get ratio between shoulder-hip and shoulder-box
+    if active_hand == "LEFT":
+        if lhy > 0 and lsy > 0:
+            sh_sub = lhy - lsy
+            sb_sub = abs(box_cy - lsy)
+            arm_ratio = sb_sub / sh_sub
+    elif active_hand == "RIGHT":
+        if rhy > 0 and rsy > 0:
+            sh_sub = rhy - rsy
+            sb_sub = abs(box_cy - rsy)
+            arm_ratio = sb_sub / sh_sub
+    else:
+        continue
 
-            # Get ratio between shoulder-hip and shoulder-box
-            if active_hand == "LEFT" and lhy is not None and lsy is not None:
-                if lhy > 0 and lsy > 0:
-                    sh_sub = lhy - lsy
-                    sb_sub = abs(box_cy - lsy)
-                    arm_ratio = sb_sub / sh_sub
-            elif active_hand == "RIGHT" and rhy is not None and rsy is not None:
-                if rhy > 0 and rsy > 0:
-                    sh_sub = rhy - rsy
-                    sb_sub = abs(box_cy - rsy)
-                    arm_ratio = sb_sub / sh_sub
+    # Check arm_ratio and arm_angle
+    ratio_hand = "N"
+    if shape_hand == "S":
+        # if(shape_hand=='S' or shape_hand=='W'):
 
-            # Check arm_ratio and arm_angle
-            if shape_hand == "S":
-                # if(shape_hand=='S' or shape_hand=='W'):
+        if pre_stop_cx:
+            threshold_waving_x = lsx - rsx
+            threshold_waving_y = 40
+            distance_stop_x = abs(cur_stop_cx - pre_stop_cx)  # Get distance using x
+            distance_stop_y = abs(cur_stop_cy - pre_stop_cy)
 
-                if pre_stop_cx is not None and lsx is not None and rsx is not None:
-                    threshold_waving_x = lsx - rsx
-                    threshold_waving_y = 50
-                    distance_stop_x = abs(cur_stop_cx - pre_stop_cx)  # Get distance using x
-                    distance_stop_y = abs(cur_stop_cy - pre_stop_cy)
+            # Check sharply movement
+            if (distance_stop_x > threshold_waving_x / 3 and distance_stop_y < threshold_waving_y):  
+                shape_hand = "W"
+            print(distance_stop_x,threshold_waving_x/3,distance_stop_y)
+            # print(distance_stop,threshold_waving)
 
-                    # Check sharply movement
-                    if (distance_stop_x > threshold_waving_x / 2 and distance_stop_y < threshold_waving_y):  
-                        shape_hand = "W"
-                    # print(cur_stop_cx,pre_stop_cx,flag_init_stop_x)
-                    # print(distance_stop,threshold_waving)
+            pre_stop_cx = cur_stop_cx
+            pre_stop_cy = cur_stop_cy
 
-                    pre_stop_cx = cur_stop_cx
+        ratio_hand = shape_hand
+    elif shape_hand == "T":
+        if(arm_ratio < 0.3):
+            ratio_hand = shape_hand
+    elif shape_hand == "Y":
+        if(arm_ratio < 0.3):                    
+            ratio_hand = shape_hand
+    elif shape_hand == "F":
+        if(arm_ratio > 0.45):
+            ratio_hand = shape_hand
+    elif shape_hand == "B": 
+        if(arm_ratio > 0.45 and arm_angle < 120):
+            ratio_hand = shape_hand
+    elif shape_hand == "P":
+        if(arm_ratio > 0.45):
+            ratio_hand = shape_hand
 
-                ratio_hand = shape_hand
-            elif arm_ratio is not None and arm_ratio < 0.3:
-                if shape_hand == "T":
-                    ratio_hand = shape_hand
-                elif shape_hand == "Y":
-                    ratio_hand = shape_hand
-            elif arm_ratio is not None and arm_ratio > 0.45:
-                if shape_hand == "F":
-                    ratio_hand = shape_hand
-                elif shape_hand == "B" and arm_angle < 120:
-                    ratio_hand = shape_hand
-                elif shape_hand == "P":
-                    distance_depth = active_depth_box * WEIGHT_DEPTH
-                    if box_cx > 320:
-                        box_center_sub = box_cx - 320
-                        # move_direction = 'R'
-                        motor_L = distance_depth + (box_center_sub * WEIGHT_DIRECTION)
-                        motor_R = distance_depth
-                    elif box_cx < 320:
-                        box_center_sub = 320 - box_cx
-                        # move_direction = 'L'
-                        motor_L = distance_depth
-                        motor_R = distance_depth + (box_center_sub * WEIGHT_DIRECTION)
-                    else:
-                        motor_L = distance_depth
-                        motor_R = distance_depth
-                    motor_L = format((int)(motor_L * 100), "03")
-                    motor_R = format((int)(motor_R * 100), "03")
-                    # motor_encoder_L=MOTOR_ENCODER*motor_L/MOTOR_DISTANCE
-                    # motor_encoder_R=MOTOR_ENCODER*motor_R/MOTOR_DISTANCE
-                    ratio_hand = shape_hand
-                    # print(f"L:{motor_L:.2f}, R:{motor_R:.2f}, DEPTH:{box_depth:.2f},E_L:{motor_encoder_L},E_R:{motor_encoder_R}")
+            distance_depth = active_depth_box * WEIGHT_DEPTH
+            if box_cx > 320:
+                box_center_sub = box_cx - 320
+                # move_direction = 'R'
+                motor_L = distance_depth + (box_center_sub * WEIGHT_DIRECTION)
+                motor_R = distance_depth
+            elif box_cx < 320:
+                box_center_sub = 320 - box_cx
+                # move_direction = 'L'
+                motor_L = distance_depth
+                motor_R = distance_depth + (box_center_sub * WEIGHT_DIRECTION)
+            else:
+                motor_L = distance_depth
+                motor_R = distance_depth
+            motor_L = format((int)(motor_L * 100), "03")
+            motor_R = format((int)(motor_R * 100), "03")
+                # print(f"L:{motor_L:.2f}, R:{motor_R:.2f}, DEPTH:{box_depth:.2f},E_L:{motor_encoder_L},E_R:{motor_encoder_R}"
 
-                    # if active_hand == 'RIGHT' and euclidean_whr is not None and rsx is not None:
-                    #     if box_cx > rsx:
-                    #         ratio_hand = 'R'
-                    #     else:
-                    #         ratio_hand = 'L'
-                    # elif active_hand == 'LEFT' and euclidean_whl is not None and lsx is not None:
-                    #     if box_cx > lsx:
-                    #         ratio_hand = 'R'
-                    #     else:
-                    #         ratio_hand = 'L'
+    # #Check out of boundary box
+    # if (box_cy < py1 or box_cy > py2 or box_cx < px1 or box_cx > px2):
+    #     print("Misrecognition hands out of the box.\n")
+    #     final_hand = 'N'
 
-            # if(arm_ratio is not None and arm_angle is not None):
-            #     print(f"Hand: {ratio_hand}",f"Ratio: {arm_ratio:.3f}",f"angle: {arm_angle:.3f}")
-
-        # #Check out of boundary box
-        # if (box_cy < py1 or box_cy > py2 or box_cx < px1 or box_cx > px2):
-        #     print("Misrecognition hands out of the box.\n")
-        #     final_hand = 'N'
-
-        # 3 times in-a-row validation
-        this_hand = ratio_hand
-        # if (this_hand == 'W'or this_hand =='P'):
-        if this_hand == "W":
-            final_hand = this_hand
-        elif this_hand == pre_gesture:
-            COUNT_GESTURE += 1
-            if COUNT_GESTURE > 3 and this_hand != "T":
+    # 3 times in-a-row validation
+    this_hand = ratio_hand
+    final_hand = "N"
+    
+    if this_hand == "W":
+        final_hand = this_hand
+    elif this_hand == pre_gesture:
+        COUNT_GESTURE += 1
+        if this_hand == "T":
+            if COUNT_GESTURE > 5:
                 COUNT_GESTURE = 0
-                final_hand = this_hand
-            elif COUNT_GESTURE > 5:
-                COUNT_GESTURE = 0
-                final_hand = this_hand
-
-        if final_hand == "P":
-            print(f"<L{motor_L}R{motor_R}>")
-            # ser.write(str(f"<{final_hand}>")).encode('utf-8'))
-            if platform.system() == "Linux":
-                ser.write(str(f"<L{motor_L}R{motor_R}>").encode("utf-8"))
-        elif final_hand != "N" and final_hand != "P":
-            print(f"<{final_hand}0000000>")
-            if platform.system() == "Linux":
-                ser.write(str(f"<{final_hand}0000000>").encode("utf-8"))
-            final_hand = "N"
+                final_hand = this_hand      
         else:
-            pre_gesture = this_hand
+            if COUNT_GESTURE > 3:
+                COUNT_GESTURE = 0
+                final_hand = this_hand
+    else:
+        COUNT_GESTURE = 0
+
+    if final_hand == "P":
+        print(f"<L{motor_L}R{motor_R}>")
+        # ser.write(str(f"<{final_hand}>")).encode('utf-8'))
+        if platform.system() == "Linux":
+            ser.write(str(f"<L{motor_L}R{motor_R}>").encode("utf-8"))
+    elif final_hand != "N" and final_hand != "P":
+        print(f"<{final_hand}0000000>")
+        if platform.system() == "Linux":
+            ser.write(str(f"<{final_hand}0000000>").encode("utf-8"))
+        final_hand = "N"
+    else:
+        pre_gesture = this_hand
 
     # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
 
