@@ -57,14 +57,14 @@ flag_init_stop_x = True
 
 keypoints_count = 9  # Number of array for pose coordinate
 keypoint_indices = {
-    0: 6,  # Nose
     6: 0,  # Right shoulder
     8: 1,  # Right elbow
     10: 2,  # Right wrist
-    12: 7,  # Right hip
     5: 3,  # Left shoulder
     7: 4,  # Left elbow
-    9: 5,  # Left wrist
+    9: 5,  # Left wristD
+    0: 6,  # Nose
+    12: 7,  # Right hip
     11: 8,  # Left hip
 }
 
@@ -238,8 +238,12 @@ while True:
                 lsy = int(array_keypoints[3][1])
                 rsx = int(array_keypoints[0][0])
                 rsy = int(array_keypoints[0][1])
-                rhy = int(array_keypoints[7][1])
-                lhy = int(array_keypoints[8][1])
+                lhy = int(array_keypoints[8][1]) # hip
+                rhy = int(array_keypoints[7][1]) # hip
+                lwx = int(array_keypoints[5][0])
+                lwy = int(array_keypoints[5][1])
+                rwx = int(array_keypoints[2][0])
+                rwy = int(array_keypoints[2][1])
 
             else:
                 continue
@@ -249,38 +253,38 @@ while True:
 
     # Distinction between left and right hands
     if box_cx is not None and box_cy is not None:
-        euclidean_whr = np.sqrt(
-            (box_cx - int(array_keypoints[2][0])) ** 2
-            + (box_cy - int(array_keypoints[2][1])) ** 2
-        )
         euclidean_whl = np.sqrt(
-            (box_cx - int(array_keypoints[5][0])) ** 2
-            + (box_cy - int(array_keypoints[5][1])) ** 2
+            (box_cx - lwx) ** 2
+            + (box_cy - lwy) ** 2
+        )
+        euclidean_whr = np.sqrt(
+            (box_cx - rwx) ** 2
+            + (box_cy - rwy) ** 2
         )
 
         # Activate hand selection
         if euclidean_whl is not None and euclidean_whr is not None:
-            if euclidean_whl > euclidean_whr:
-                active_hand = "RIGHT"
-                arm_angle = calculate_angle_arm(
-                    array_keypoints[0], array_keypoints[1], array_keypoints[2]
-                )
-            elif euclidean_whl < euclidean_whr:
+            if euclidean_whl < euclidean_whr:
                 active_hand = "LEFT"
                 arm_angle = calculate_angle_arm(
                     array_keypoints[3], array_keypoints[4], array_keypoints[5]
                 )
+            elif euclidean_whl > euclidean_whr:
+                active_hand = "RIGHT"
+                arm_angle = calculate_angle_arm(
+                    array_keypoints[0], array_keypoints[1], array_keypoints[2]
+                )
 
             # Get ratio between shoulder-hip and shoulder-box
-            if active_hand == "RIGHT" and rhy is not None and rsy is not None:
-                if rhy > 0 and rsy > 0:
-                    sh_sub = rhy - rsy
-                    sb_sub = abs(box_cy - rsy)
-                    arm_ratio = sb_sub / sh_sub
-            elif active_hand == "LEFT" and lhy is not None and lsy is not None:
+            if active_hand == "LEFT" and lhy is not None and lsy is not None:
                 if lhy > 0 and lsy > 0:
                     sh_sub = lhy - lsy
                     sb_sub = abs(box_cy - lsy)
+                    arm_ratio = sb_sub / sh_sub
+            elif active_hand == "RIGHT" and rhy is not None and rsy is not None:
+                if rhy > 0 and rsy > 0:
+                    sh_sub = rhy - rsy
+                    sb_sub = abs(box_cy - rsy)
                     arm_ratio = sb_sub / sh_sub
 
             # Check arm_ratio and arm_angle
