@@ -373,14 +373,14 @@ while True:
         final_hand = this_hand
     elif this_hand == pre_gesture:
         COUNT_GESTURE += 1
-        if this_hand == "T":
-            if COUNT_GESTURE > 5:
-                COUNT_GESTURE = 0
-                final_hand = this_hand      
-        else:
-            if COUNT_GESTURE > 3:
-                COUNT_GESTURE = 0
-                final_hand = this_hand
+        # if this_hand == "T":
+        #     if COUNT_GESTURE > 5:
+        #         COUNT_GESTURE = 0
+        #         final_hand = this_hand      
+        # else:
+        if COUNT_GESTURE > 3:
+            COUNT_GESTURE = 0
+            final_hand = this_hand
     else:
         COUNT_GESTURE = 0
 
