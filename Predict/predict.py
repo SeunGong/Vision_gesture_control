@@ -85,7 +85,7 @@ while True:
     # pbox_cx, pbox_cy = None, None  # pointing box center
     lsx, lsy, rsx, rsy = None, None, None, None  # shoulder x,y
     lhy, rhy = None, None  # hip y
-    euclidean_whl, euclidean_whr = None, None  # Distance both side winkle-hands
+    euclidean_whl, euclidean_whr = None, None  # Distance both side wrist-hands
     sb_sub, sh_sub = None, None # shoulder-hip
 
     depth_nose = None
