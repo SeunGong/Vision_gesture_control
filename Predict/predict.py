@@ -81,7 +81,7 @@ while True:
 
     # Reset variable
     box_cx, box_cy = None, None  # hands box center
-    cur_cx, cur_cy = None, None
+    cur_stop_cx, cur_stop_cy = None, None
     # pbox_cx, pbox_cy = None, None  # pointing box center
     lsx, lsy, rsx, rsy = None, None, None, None  # shoulder x,y
     lhy, rhy = None, None  # hip y
@@ -105,7 +105,7 @@ while True:
     motor_L, motor_R = 0, 0
     array_keypoints = np.zeros((keypoints_count, 2))  # [RS,RE,RW,LS,LE,LW,]
 
-    #################### Predict hands ####################
+    #################### Predict active hands ####################
     results_hands = model_hands(color_image, conf=0.8, verbose=False)
     if results_hands is not None:
         for r in results_hands:
@@ -132,7 +132,6 @@ while True:
 
                 list_depth_boxes[number_box] = depth_box
                 list_shape_hands[number_box] = model_hands.names[int(box.cls)]
-
 
                 # Drawing bounding box
                 if depth_box != 0 and depth_box < active_depth_box:
@@ -170,29 +169,29 @@ while True:
                 # print("find min hands:",shape_hand)
                 # print(f"Closest Hand Gesture: {shape_hand} at Index {final_hands_index} with Depth {box_depth}")
                 # convert 1 character
-
                 # Get hand shape
                 if shape_hand == "STOP":
                     shape_hand = shape_hand[0]
-                    cur_cx, cur_cy = int((x2 - x1) / 2 + x1), int(
-                        (y2 - y1) / 2 + y1
-                    )  # Set current box coordinate
+                    cur_stop_cx, cur_stop_cy = box_cx, box_cy
+
                     if flag_init_stop_x == True:
                         flag_init_stop_x = False
-                        pre_stop_cx = cur_cx
+                        pre_stop_cx = cur_stop_cx
 
                     # if pre_stop_cx is not None and pre_stop_cy is not None:
-                    #     distance_stop = abs(cur_cx - pre_stop_cx)  # Get distance using x
+                    #     distance_stop = abs(cur_stop_cx - pre_stop_cx)  # Get distance using x
                     #     # print(distance_stop)
                     #     if distance_stop > THRESHOLD_WAVING:  # Check sharply movement using only x value
                     #         shape_hand = 'W'
 
-                    # pre_stop_cx, pre_stop_cy = cur_cx, cur_cy
+                    # pre_stop_cx, pre_stop_cy = cur_stop_cx, cur_stop_cy
                 # elif shape_hand == 'POINTING':
                 #     shape_hand = shape_hand[0]
                 #     # pbox_cx, pbox_cy = box_cx, box_cy
                 else:
                     shape_hand = shape_hand[0]
+            else:
+                continue
 
     #################### Predict pose ####################
     results_pose = model_pose(color_image, conf=0.8, verbose=False)  # Predict pose
@@ -218,26 +217,32 @@ while True:
                 if depth_pose_box < pose_depth:
                     pose_depth = depth_pose_box
                     final_pose_index = number_pose_box
+
             # Check index count more than pose count
-            if len(pose_boxes) > final_pose_index:
+            if len(pose_boxes) > 0:
                 coordi_pose = pose_boxes[final_pose_index].xyxy[0]
                 px1, py1, px2, py2 = map(int, coordi_pose[:4])
                 # cv2.putText(pose_color_image, "left", (px1, py1+10), cv2.FONT_HERSHEY_SIMPLEX,
                 #     0.7, (0, 255, 0), 2, cv2.LINE_4)
                 # cv2.putText(pose_color_image, "right", (px2, py2), cv2.FONT_HERSHEY_SIMPLEX,
                 #     0.7, (0, 255, 0), 2, cv2.LINE_4)
-            # Get keypoints
-            for i, k in enumerate(keypoints[final_pose_index]):
-                for kp_index, ap_index in keypoint_indices.items():
-                    if k.xy[0].size(0) > kp_index:
-                        array_keypoints[ap_index] = k.xy[0][kp_index].cpu().numpy()
-            # put value in variable
-            lsx = int(array_keypoints[3][0])
-            lsy = int(array_keypoints[3][1])
-            rsx = int(array_keypoints[0][0])
-            rsy = int(array_keypoints[0][1])
-            rhy = int(array_keypoints[7][1])
-            lhy = int(array_keypoints[8][1])
+
+                # Get keypoints
+                for i, k in enumerate(keypoints[final_pose_index]):
+                    for kp_index, ap_index in keypoint_indices.items():
+                        if k.xy[0].size(0) > kp_index:
+                            array_keypoints[ap_index] = k.xy[0][kp_index].cpu().numpy()
+                
+                # put value in variable
+                lsx = int(array_keypoints[3][0])
+                lsy = int(array_keypoints[3][1])
+                rsx = int(array_keypoints[0][0])
+                rsy = int(array_keypoints[0][1])
+                rhy = int(array_keypoints[7][1])
+                lhy = int(array_keypoints[8][1])
+
+            else:
+                continue
 
 
     ###############################Post-processing###################################
@@ -284,15 +289,15 @@ while True:
 
                 if pre_stop_cx is not None and lsx is not None and rsx is not None:
                     THRESHOLD_WAVING = lsx - rsx
-                    distance_stop = abs(cur_cx - pre_stop_cx)  # Get distance using x
+                    distance_stop = abs(cur_stop_cx - pre_stop_cx)  # Get distance using x
                     if (
                         distance_stop > THRESHOLD_WAVING
                     ):  # Check sharply movement using only x value
                         shape_hand = "W"
-                    # print(cur_cx,pre_stop_cx,flag_init_stop_x)
+                    # print(cur_stop_cx,pre_stop_cx,flag_init_stop_x)
                     # print(distance_stop,THRESHOLD_WAVING)
 
-                    pre_stop_cx = cur_cx
+                    pre_stop_cx = cur_stop_cx
 
                 ratio_hand = shape_hand
             elif arm_ratio is not None and arm_ratio < 0.3:
