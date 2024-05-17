@@ -8,11 +8,14 @@ import serial
 import numpy as np
 import pyrealsense2 as rs
 import matplotlib.pyplot as plt
+import platform
+
 from ultralytics import YOLO
 from predict_f import calculate_angle_arm
 
 # Serial setting
-ser = serial.Serial("/dev/ttyUSB0", 115200)
+if platform.system() == "Linux":
+    ser = serial.Serial("/dev/ttyUSB0", 115200)
 
 # Define camera frame width,height
 W, H = 640, 480
@@ -44,9 +47,11 @@ WEIGHT_DEPTH = 0.9
 DEPTH_DISTANCE_MAX = 4
 MOTOR_ENCODER = 4096
 MOTOR_DISTANCE = 0.534
+
 # Init variable
 pre_stop_cx, pre_stop_cy = 0, 0  # Previous center coordinates
 pre_gesture = "N"
+
 # Flag
 flag_init_stop_x = True
 
@@ -81,7 +86,7 @@ while True:
     lsx, lsy, rsx, rsy = None, None, None, None  # shoulder x,y
     lhy, rhy = None, None  # hip y
     euclidean_whl, euclidean_whr = None, None  # Distance both side winkle-hands
-    sb_sub, sh_sub = None, None
+    sb_sub, sh_sub = None, None # shoulder-hip
 
     depth_nose = None
     depth_hand = None
@@ -226,7 +231,9 @@ while True:
             rsy = int(array_keypoints[0][1])
             rhy = int(array_keypoints[7][1])
             lhy = int(array_keypoints[8][1])
-    ###################################################################################
+
+
+    ###############################Post-processing###################################
 
     # Distinction between left and right hands
     if box_cx is not None and box_cy is not None:
@@ -336,7 +343,7 @@ while True:
         #     print("Misrecognition hands out of the box.\n")
         #     final_hand = 'N'
 
-        # 3times validation
+        # 3 times in-a-row validation
         this_hand = ratio_hand
         # if (this_hand == 'W'or this_hand =='P'):
         if this_hand == "W":
@@ -353,11 +360,12 @@ while True:
         if final_hand == "P":
             print(f"<L{motor_L}R{motor_R}>")
             # ser.write(str(f"<{final_hand}>")).encode('utf-8'))
-            ser.write(str(f"<L{motor_L}R{motor_R}>").encode("utf-8"))
+            if platform.system() == "Linux":
+                ser.write(str(f"<L{motor_L}R{motor_R}>").encode("utf-8"))
         elif final_hand != "N" and final_hand != "P":
             print(f"<{final_hand}0000000>")
-
-            ser.write(str(f"<{final_hand}0000000>").encode("utf-8"))
+            if platform.system() == "Linux":
+                ser.write(str(f"<{final_hand}0000000>").encode("utf-8"))
             final_hand = "N"
         else:
             pre_gesture = this_hand
@@ -365,7 +373,8 @@ while True:
     # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
+        if platform.system() == "Linux":
+            ser.close()
         break
-        ser.close()
 
 pipeline.stop()  # 카메라 파이프라인을 종료합니다.
