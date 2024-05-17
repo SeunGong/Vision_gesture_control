@@ -39,7 +39,7 @@ model_hands = YOLO("240503.pt")
 #MACRO
 threshold_waving = 100  # Threshold for waving
 count_gesture = 0
-weight_direction=0.005
+weight_direction=0.0045
 weight_depth=0.9
 DEPTH_DISTANCE_MAX=4
 MOTOR_ENCODER =4096
@@ -308,7 +308,10 @@ while True:
             final_hand = this_hand
         elif (this_hand == pre_gesture):
             count_gesture += 1
-            if (count_gesture > 3):
+            if (count_gesture > 3 and this_hand != 'T'):
+                count_gesture = 0
+                final_hand = this_hand
+            elif (count_gesture > 5):
                 count_gesture = 0
                 final_hand = this_hand
                 
@@ -324,7 +327,7 @@ while True:
         else:
             pre_gesture = this_hand
 
-    cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
+    #cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
