@@ -37,10 +37,10 @@ model_pose = YOLO("yolov8m-pose")
 model_hands = YOLO("240503.pt")
 
 # MACRO
-threshold_waving = 100  # Threshold for waving
-count_gesture = 0
-weight_direction = 0.0045
-weight_depth = 0.9
+THRESHOLD_WAVING = 100  # Threshold for waving
+COUNT_GESTURE = 0
+WEIGHT_DIRECTION = 0.0045
+WEIGHT_DEPTH = 0.9
 DEPTH_DISTANCE_MAX = 4
 MOTOR_ENCODER = 4096
 MOTOR_DISTANCE = 0.534
@@ -172,7 +172,7 @@ while True:
                     # if pre_stop_cx is not None and pre_stop_cy is not None:
                     #     distance_stop = abs(cur_cx - pre_stop_cx)  # Get distance using x
                     #     # print(distance_stop)
-                    #     if distance_stop > threshold_waving:  # Check sharply movement using only x value
+                    #     if distance_stop > THRESHOLD_WAVING:  # Check sharply movement using only x value
                     #         shape_hand = 'W'
 
                     # pre_stop_cx, pre_stop_cy = cur_cx, cur_cy
@@ -269,14 +269,14 @@ while True:
                 # if(shape_hand=='S' or shape_hand=='W'):
 
                 if pre_stop_cx is not None and lsx is not None and rsx is not None:
-                    threshold_waving = lsx - rsx
+                    THRESHOLD_WAVING = lsx - rsx
                     distance_stop = abs(cur_cx - pre_stop_cx)  # Get distance using x
                     if (
-                        distance_stop > threshold_waving
+                        distance_stop > THRESHOLD_WAVING
                     ):  # Check sharply movement using only x value
                         shape_hand = "W"
                     # print(cur_cx,pre_stop_cx,flag_init_stop_x)
-                    # print(distance_stop,threshold_waving)
+                    # print(distance_stop,THRESHOLD_WAVING)
 
                     pre_stop_cx = cur_cx
 
@@ -296,17 +296,17 @@ while True:
                         box_depth = DEPTH_DISTANCE_MAX
                     elif box_depth < 0:
                         box_depth = 0
-                    distance_depth = box_depth * weight_depth
+                    distance_depth = box_depth * WEIGHT_DEPTH
                     if box_cx > 320:
                         box_center_sub = box_cx - 320
                         # move_direction = 'R'
-                        motor_L = distance_depth + (box_center_sub * weight_direction)
+                        motor_L = distance_depth + (box_center_sub * WEIGHT_DIRECTION)
                         motor_R = distance_depth
                     elif box_cx < 320:
                         box_center_sub = 320 - box_cx
                         # move_direction = 'L'
                         motor_L = distance_depth
-                        motor_R = distance_depth + (box_center_sub * weight_direction)
+                        motor_R = distance_depth + (box_center_sub * WEIGHT_DIRECTION)
                     else:
                         motor_L = distance_depth
                         motor_R = distance_depth
@@ -342,12 +342,12 @@ while True:
         if this_hand == "W":
             final_hand = this_hand
         elif this_hand == pre_gesture:
-            count_gesture += 1
-            if count_gesture > 3 and this_hand != "T":
-                count_gesture = 0
+            COUNT_GESTURE += 1
+            if COUNT_GESTURE > 3 and this_hand != "T":
+                COUNT_GESTURE = 0
                 final_hand = this_hand
-            elif count_gesture > 5:
-                count_gesture = 0
+            elif COUNT_GESTURE > 5:
+                COUNT_GESTURE = 0
                 final_hand = this_hand
 
         if final_hand == "P":
