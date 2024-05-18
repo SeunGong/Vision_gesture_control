@@ -14,7 +14,7 @@ from ultralytics import YOLO
 from predict_f import calculate_angle_arm
 
 # Serial setting
-
+initial_time = time.time()
 if platform.system() == "Linux":
     ser = serial.Serial("/dev/ttyUSB0", 115200)
 
@@ -72,10 +72,13 @@ keypoint_indices = {
     11: 8,  # Left hip
 }
 
+w_flag = False
 print ("start!!!")
-
+boot_time = time.time()
+# print("booting time: ", boot_time - initial_time)
 while True:
     # Get camera frame#########################################
+    time1 = time.time()
     frames = pipeline.wait_for_frames()
     aligned_frames = align.process(frames)
     color_frame = aligned_frames.get_color_frame()
@@ -373,6 +376,10 @@ while True:
     
     if this_hand == "W":
         final_hand = this_hand
+        count_gesture = 0
+        count_turn_gesture = 0
+        w_flag = True
+
     elif this_hand == "T":
         count_turn_gesture += 1
         count_gesture = 0
@@ -402,8 +409,15 @@ while True:
     else:
         pre_gesture = this_hand
     
+
     # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     print(f"<{shape_hand}{ratio_hand}{final_hand}0000000>,angle:{arm_angle:.2f},ratio:{arm_ratio:.2f}")
+    if w_flag:
+        time.sleep(2)
+        w_flag = False
+
+    time2 = time.time()
+    # print("running time: ", time2 - time1)
     if cv2.waitKey(1) & 0xFF == ord("q"):
         if platform.system() == "Linux":
             ser.close()
