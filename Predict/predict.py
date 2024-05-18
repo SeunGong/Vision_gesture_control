@@ -14,6 +14,7 @@ from ultralytics import YOLO
 from predict_f import calculate_angle_arm
 
 # Serial setting
+
 if platform.system() == "Linux":
     ser = serial.Serial("/dev/ttyUSB0", 115200)
 
