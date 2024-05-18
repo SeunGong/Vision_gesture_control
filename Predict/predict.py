@@ -244,7 +244,7 @@ while True:
                 lhy = int(array_keypoints[8][1]) # hip
                 rhy = int(array_keypoints[7][1]) 
 
-                lwx = int(array_keypoints[5][0]) #winkle
+                lwx = int(array_keypoints[5][0]) #wrist
                 lwy = int(array_keypoints[5][1])
                 rwx = int(array_keypoints[2][0])
                 rwy = int(array_keypoints[2][1])
@@ -317,7 +317,7 @@ while True:
             # Check sharply movement
             if (distance_stop_x > threshold_waving_x / 3 and distance_stop_y < threshold_waving_y):  
                 shape_hand = "W"
-            print(distance_stop_x,threshold_waving_x/3,distance_stop_y)
+            # print(distance_stop_x,threshold_waving_x/3,distance_stop_y)
             # print(distance_stop,threshold_waving)
 
             pre_stop_cx = cur_stop_cx
@@ -331,7 +331,7 @@ while True:
         if(arm_ratio < 0.3):                    
             ratio_hand = shape_hand
     elif shape_hand == "F":
-        if(arm_ratio > 0.45):
+        if(arm_ratio > 0.45 and arm_ratio<0.8):
             ratio_hand = shape_hand
     elif shape_hand == "B": 
         if(arm_ratio > 0.45 and arm_angle < 120):
@@ -381,20 +381,21 @@ while True:
             final_hand = this_hand
     else:
         COUNT_GESTURE = 0
-
+    
     if final_hand == "P":
         print(f"<L{motor_L}R{motor_R}>")
         # ser.write(str(f"<{final_hand}>")).encode('utf-8'))
         if platform.system() == "Linux":
             ser.write(str(f"<L{motor_L}R{motor_R}>").encode("utf-8"))
     elif final_hand != "N" and final_hand != "P":
-        print(f"<{final_hand}0000000>")
+        # print(f"<{final_hand}0000000>")
+        print(f"<{final_hand}0000000>,angle:{arm_angle:.2f},ratio:{arm_ratio:.2f}")
         if platform.system() == "Linux":
             ser.write(str(f"<{final_hand}0000000>").encode("utf-8"))
         final_hand = "N"
     else:
         pre_gesture = this_hand
-
+    
     # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
