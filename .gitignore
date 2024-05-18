@@ -2,5 +2,5 @@ runs/
 # Argumentation/
 mismatch_images/
 settings.json
-Predict/__pycache__/predict_f.cpython-39.pyc
+*/__pycache__/*
 Predict/example.py

@@ -42,12 +42,15 @@ model_hands = YOLO("240503.pt")
 
 # MACRO
 # THRESHOLD_WAVING = 100  # Threshold for waving
-COUNT_GESTURE = 0
+
 WEIGHT_DIRECTION = 0.0045
 WEIGHT_DEPTH = 0.9
 DEPTH_DISTANCE_MAX = 4
 MOTOR_ENCODER = 4096
 MOTOR_DISTANCE = 0.534
+
+count_gesture = 0
+count_turn_gesture = 0
 
 # Init variable
 pre_stop_cx, pre_stop_cy = 0, 0  # Previous center coordinates
@@ -193,13 +196,13 @@ while True:
         continue
 
     if flag_continue == 1:
-        flag_continue=0
+        
         continue
 
     #################### Predict pose ####################
     results_pose = model_pose(color_image, conf=0.8, verbose=False)  # Predict pose
     pose_color_image = results_pose[0].plot()  # Draw skelton to pose image
-
+    cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     if results_pose is not None:
         for r in results_pose:
             keypoints = r.keypoints
@@ -249,7 +252,7 @@ while True:
                 lwy = int(array_keypoints[5][1])
                 rwx = int(array_keypoints[2][0])
                 rwy = int(array_keypoints[2][1])
-                cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
+                # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
 
                 if(lsx==0 or lsy==0 or rsx==0 or rsy==0 or lhy ==0 or rhy==0 or lwx==0 or lwy==0 or rwx==0 or rwy==0):
                     flag_continue=1
@@ -262,7 +265,7 @@ while True:
         continue
 
     if flag_continue == 1:
-        flag_continue=0
+        
         continue
 
 
@@ -307,8 +310,8 @@ while True:
     # Check arm_ratio and arm_angle
     ratio_hand = "N"
     if shape_hand == "S":
-        # if(shape_hand=='S' or shape_hand=='W'):
-
+        ratio_hand = shape_hand
+        
         if pre_stop_cx:
             threshold_waving_x = lsx - rsx
             threshold_waving_y = 40
@@ -317,14 +320,13 @@ while True:
 
             # Check sharply movement
             if (distance_stop_x > threshold_waving_x / 3 and distance_stop_y < threshold_waving_y):  
-                shape_hand = "W"
+                ratio_hand = "W"
             # print(distance_stop_x,threshold_waving_x/3,distance_stop_y)
             # print(distance_stop,threshold_waving)
 
             pre_stop_cx = cur_stop_cx
             pre_stop_cy = cur_stop_cy
 
-        ratio_hand = shape_hand
     elif shape_hand == "T":
         if(arm_ratio < 0.3):
             ratio_hand = shape_hand
@@ -335,7 +337,8 @@ while True:
         if(arm_ratio > 0.45 and arm_ratio<0.8):
             ratio_hand = shape_hand
     elif shape_hand == "B": 
-        if(arm_ratio > 0.45 and arm_angle < 120):
+        # if(arm_ratio > 0.45 and arm_angle < 120):
+        if(arm_ratio > 0.45):
             ratio_hand = shape_hand
     elif shape_hand == "P":
         if(arm_ratio > 0.45):
@@ -370,18 +373,20 @@ while True:
     
     if this_hand == "W":
         final_hand = this_hand
+    elif this_hand == "T":
+        count_turn_gesture += 1
+        count_gesture = 0
+        if count_turn_gesture > 5:
+            count_turn_gesture = 0
+            final_hand = this_hand
     elif this_hand == pre_gesture:
-        COUNT_GESTURE += 1
-        # if this_hand == "T":
-        #     if COUNT_GESTURE > 5:
-        #         COUNT_GESTURE = 0
-        #         final_hand = this_hand      
-        # else:
-        if COUNT_GESTURE > 3:
-            COUNT_GESTURE = 0
+        count_gesture += 1
+        if count_gesture > 3:
+            count_gesture = 0
+            count_turn_gesture = 0
             final_hand = this_hand
     else:
-        COUNT_GESTURE = 0
+        count_gesture = 0
     
     if final_hand == "P":
         print(f"<L{motor_L}R{motor_R}>")
@@ -390,15 +395,15 @@ while True:
             ser.write(str(f"<L{motor_L}R{motor_R}>").encode("utf-8"))
     elif final_hand != "N" and final_hand != "P":
         # print(f"<{final_hand}0000000>")
-        print(f"<{final_hand}0000000>,angle:{arm_angle:.2f},ratio:{arm_ratio:.2f}")
+        # print(f"<{final_hand}0000000>,angle:{arm_angle:.2f},ratio:{arm_ratio:.2f}")
         if platform.system() == "Linux":
             ser.write(str(f"<{final_hand}0000000>").encode("utf-8"))
-        final_hand = "N"
+        
     else:
         pre_gesture = this_hand
     
     # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
-
+    print(f"<{shape_hand}{ratio_hand}{final_hand}0000000>,angle:{arm_angle:.2f},ratio:{arm_ratio:.2f}")
     if cv2.waitKey(1) & 0xFF == ord("q"):
         if platform.system() == "Linux":
             ser.close()
