@@ -141,6 +141,8 @@ while True:
                 if depth_box != 0 and depth_box < active_depth_box:
                     active_depth_box = depth_box
                     final_hands_index = number_box
+                else:
+                    flag_continue=1
 
             # select active hand
             if len(boxes) > 0:  # Ensure index is within bounds
@@ -160,7 +162,7 @@ while True:
                     thickness=2,
                     lineType=cv2.LINE_4,
                 )
-                # cv2.putText(color_image, f"Depth: {depth_hand}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+                cv2.putText(color_image, f"Depth: {depth_hand}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
                 cv2.putText(
                     color_image,
                     shape_hand,
@@ -170,9 +172,7 @@ while True:
                     (0, 0, 255),
                     2,
                 )
-                # print("find min hands:",shape_hand)
-                # print(f"Closest Hand Gesture: {shape_hand} at Index {final_hands_index} with Depth {box_depth}")
-                # convert 1 character
+
                 # Get hand shape
                 if shape_hand == "STOP":
                     shape_hand = shape_hand[0]
@@ -183,16 +183,6 @@ while True:
                         pre_stop_cx = cur_stop_cx
                         pre_stop_cy = cur_stop_cy
 
-                    # if pre_stop_cx is not None and pre_stop_cy is not None:
-                    #     distance_stop = abs(cur_stop_cx - pre_stop_cx)  # Get distance using x
-                    #     # print(distance_stop)
-                    #     if distance_stop > THRESHOLD_WAVING:  # Check sharply movement using only x value
-                    #         shape_hand = 'W'
-
-                    # pre_stop_cx, pre_stop_cy = cur_stop_cx, cur_stop_cy
-                # elif shape_hand == 'POINTING':
-                #     shape_hand = shape_hand[0]
-                #     # pbox_cx, pbox_cy = box_cx, box_cy
                 else:
                     shape_hand = shape_hand[0]
             else:
@@ -202,6 +192,7 @@ while True:
         continue
 
     if flag_continue == 1:
+        flag_continue=0
         continue
 
     #################### Predict pose ####################
@@ -245,17 +236,23 @@ while True:
                             array_keypoints[ap_index] = k.xy[0][kp_index].cpu().numpy()
                 
                 # put value in variable
-                lsx = int(array_keypoints[3][0])
+                lsx = int(array_keypoints[3][0]) #shoulder
                 lsy = int(array_keypoints[3][1])
                 rsx = int(array_keypoints[0][0])
                 rsy = int(array_keypoints[0][1])
+                
                 lhy = int(array_keypoints[8][1]) # hip
-                rhy = int(array_keypoints[7][1]) # hip
-                lwx = int(array_keypoints[5][0])
+                rhy = int(array_keypoints[7][1]) 
+
+                lwx = int(array_keypoints[5][0]) #winkle
                 lwy = int(array_keypoints[5][1])
                 rwx = int(array_keypoints[2][0])
                 rwy = int(array_keypoints[2][1])
+                cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
 
+                if(lsx==0 or lsy==0 or rsx==0 or rsy==0 or lhy ==0 or rhy==0 or lwx==0 or lwy==0 or rwx==0 or rwy==0):
+                    flag_continue=1
+                    continue
 
             else:
                 flag_continue = 1
@@ -264,6 +261,7 @@ while True:
         continue
 
     if flag_continue == 1:
+        flag_continue=0
         continue
 
 
