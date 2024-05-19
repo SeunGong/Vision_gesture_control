@@ -74,10 +74,14 @@ keypoint_indices = {
     11: 8,  # Left hip
 }
 
+array_keypoints = np.zeros((keypoints_count, 2))  # [RS,RE,RW,LS,LE,LW,]
 w_flag = False
 print ("start!!!")
 boot_time = time.time()
 print("booting time: ", boot_time - initial_time)
+
+
+
 while True:
     # Get camera frame#########################################
     time1 = time.time()
@@ -89,8 +93,6 @@ while True:
         continue
     color_image = np.asanyarray(color_frame.get_data())
     depth_image = np.asanyarray(depth_frame.get_data())
-
-    array_keypoints = np.zeros((keypoints_count, 2))  # [RS,RE,RW,LS,LE,LW,]
 
     flag_continue = 0
 
@@ -220,24 +222,19 @@ while True:
                         if k.xy[0].size(0) > kp_index:
                             array_keypoints[ap_index] = k.xy[0][kp_index].cpu().numpy()
                 
-                # put value in variable
-                lsx = int(array_keypoints[3][0]) #shoulder
-                lsy = int(array_keypoints[3][1])
-                rsx = int(array_keypoints[0][0])
-                rsy = int(array_keypoints[0][1])
-                
-                lhy = int(array_keypoints[8][1]) # hip
-                rhy = int(array_keypoints[7][1]) 
-
-                lwx = int(array_keypoints[5][0]) #wrist
-                lwy = int(array_keypoints[5][1])
-                rwx = int(array_keypoints[2][0])
-                rwy = int(array_keypoints[2][1])
+                lsx, lsy = map(int, array_keypoints[3]) # Left shoulder
+                rsx, rsy = map(int, array_keypoints[0]) # Right shoulder
+                lhy = int(array_keypoints[8][1])        # Left hip
+                rhy = int(array_keypoints[7][1])        # Right hip
+                lwx, lwy = map(int, array_keypoints[5]) # Left wrist
+                rwx, rwy = map(int, array_keypoints[2]) # Right wrist
+                coordinates = [lsx, lsy, rsx, rsy, lhy, rhy, lwx, lwy, rwx, rwy]
                 # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
 
-                if(lsx==0 or lsy==0 or rsx==0 or rsy==0 or lhy ==0 or rhy==0 or lwx==0 or lwy==0 or rwx==0 or rwy==0):
-                    flag_continue=1
+                if any(coord == 0 for coord in coordinates):
+                    flag_continue = 1
                     continue
+
 
             else:
                 flag_continue = 1
@@ -388,7 +385,7 @@ while True:
         w_flag = False
 
     time2 = time.time()
-    # print("running time: ", time2 - time1)
+    print("running time: ", time2 - time1)
     if cv2.waitKey(1) & 0xFF == ord("q"):
         if platform.system() == "Linux":
             ser.close()
