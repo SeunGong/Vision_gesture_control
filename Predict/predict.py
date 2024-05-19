@@ -90,30 +90,6 @@ while True:
     color_image = np.asanyarray(color_frame.get_data())
     depth_image = np.asanyarray(depth_frame.get_data())
 
-    # Reset variable
-    box_cx, box_cy = None, None  # hands box center
-    cur_stop_cx, cur_stop_cy = None, None
-    # pbox_cx, pbox_cy = None, None  # pointing box center
-    lsx, lsy, rsx, rsy = None, None, None, None  # shoulder x,y
-    lhy, rhy = None, None  # hip y
-    euclidean_whl, euclidean_whr = None, None  # Distance both side wrist-hands
-    sb_sub, sh_sub = None, None # shoulder-hip
-
-    depth_nose = None
-    depth_hand = None
-    pose_depth = None
-
-    arm_angle = None
-    arm_ratio = None
-
-    active_hand = None
-    shape_hand = None
-    # ratio_hand = "N"
-    # final_hand = "N"
-
-    box_depth = None
-
-    motor_L, motor_R = 0, 0
     array_keypoints = np.zeros((keypoints_count, 2))  # [RS,RE,RW,LS,LE,LW,]
 
     flag_continue = 0
@@ -207,7 +183,7 @@ while True:
     #################### Predict pose ####################
     results_pose = model_pose(color_image, conf=0.8, verbose=False)  # Predict pose
     pose_color_image = results_pose[0].plot()  # Draw skelton to pose image
-    # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
+    cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     if results_pose is not None:
         for r in results_pose:
             keypoints = r.keypoints
