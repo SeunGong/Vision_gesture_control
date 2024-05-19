@@ -53,9 +53,12 @@ def calculate_arm_ratio(box_cy, shoulder_y, hip_y):
         return sb_sub / sh_sub
     return None
 
+
+
 # Distinction between left and right hands
 def calculate_euclidean_distance(x1, y1, x2, y2):
     return np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+
 
 
 # Activate hand selection
@@ -73,3 +76,21 @@ def select_active_hand(box_cx, box_cy, keypoints):
         arm_ratio = calculate_arm_ratio(box_cy, keypoints[0][1], keypoints[7][1])
 
     return active_hand, arm_angle, arm_ratio
+
+
+
+def get_box_coordinates(box, depth_frame, model_hands, DEPTH_DISTANCE_MAX):
+    b = box.xyxy[0].to("cpu").detach().numpy().copy()
+    x1, y1, x2, y2 = map(int, b[:4])
+    box_cx = int((x2 - x1) / 2 + x1)
+    box_cy = int((y2 - y1) / 2 + y1)
+    depth_box = depth_frame.get_distance(box_cx, box_cy)
+
+    if depth_box > DEPTH_DISTANCE_MAX:
+        depth_box = DEPTH_DISTANCE_MAX
+    elif depth_box < 0:
+        depth_box = 0
+
+    shape_hand = model_hands.names[int(box.cls)]
+
+    return (x1, y1, x2, y2, box_cx, box_cy, depth_box, shape_hand)

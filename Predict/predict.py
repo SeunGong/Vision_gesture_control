@@ -14,6 +14,7 @@ from ultralytics import YOLO
 from predict_f import *
 
 
+
 # Serial setting
 initial_time = time.time()
 if platform.system() == "Linux":
@@ -34,15 +35,12 @@ profile = pipeline.start(config)
 align_to = rs.stream.color
 align = rs.align(align_to)
 
-# final_hand = None
-count_print = 0
 
 # Road YOLO model
 model_pose = YOLO("yolov8m-pose")
 model_hands = YOLO("240503.pt")
 
 # MACRO
-# THRESHOLD_WAVING = 100  # Threshold for waving
 
 WEIGHT_DIRECTION = 0.0045
 WEIGHT_DEPTH = 0.9
@@ -59,6 +57,7 @@ pre_gesture = "N"
 
 # Flag
 flag_init_stop_x = True
+waving_flag = False
 
 keypoints_count = 9  # Number of array for pose coordinate
 keypoint_indices = {
@@ -74,10 +73,9 @@ keypoint_indices = {
 }
 
 array_keypoints = np.zeros((keypoints_count, 2))  # [RS,RE,RW,LS,LE,LW,]
-waving_flag = False
 print ("start!!!")
-boot_time = time.time()
-print("booting time: ", boot_time - initial_time)
+# boot_time = time.time()
+# print("booting time: ", boot_time - initial_time)
 
 
 while True:
@@ -99,58 +97,45 @@ while True:
     if results_hands is not None:
         for r in results_hands:
             boxes = r.boxes  # Boxes class
-            final_hands_index = 0
+            # final_hands_index = 0
             active_depth_box = float("inf")
-            list_depth_boxes = [0] * len(boxes)
-            list_shape_hands = [""] * len(boxes)
-            x1, y1, x2, y2 = 0, 0, 0, 0
+            # list_depth_boxes = [0] * len(boxes)
+            # list_shape_hands = [""] * len(boxes)
+            # x1, y1, x2, y2 = 0, 0, 0, 0
 
             # Check front hand
             for number_box, box in enumerate(boxes):
-                b = box.xyxy[0].to("cpu").detach().numpy().copy()
-                x1, y1, x2, y2 = map(
-                    int, b[:4]
-                )  # Box left top and right bottom coordinate
-                box_cx, box_cy = int((x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
-                depth_box = depth_frame.get_distance(box_cx, box_cy)
-
-                if depth_box > DEPTH_DISTANCE_MAX:
-                    depth_box = DEPTH_DISTANCE_MAX
-                elif depth_box < 0:
-                    depth_box = 0
-
-                list_depth_boxes[number_box] = depth_box
-                list_shape_hands[number_box] = model_hands.names[int(box.cls)]
+                x1, y1, x2, y2, box_cx, box_cy, depth_box, shape_hand = get_box_coordinates(box, depth_frame, model_hands, DEPTH_DISTANCE_MAX)
+                # list_depth_boxes[number_box] = depth_box
+                # list_shape_hands[number_box] = shape_hand
 
                 # Drawing bounding box
                 if depth_box != 0 and depth_box < active_depth_box:
-                    active_depth_box = depth_box
-                    final_hands_index = number_box
+                    active_depth_hand = depth_box
+                    # final_hands_index = number_box
+                    active_box_cx = box_cx
+                    active_box_cy = box_cy
+                    active_x1, active_y1, active_x2, active_y2 = x1, y1, x2, y2
+                    active_shape_hand = shape_hand
+                    
                 else:
                     flag_continue = True
 
             # select active hand
             if len(boxes) > 0:  # Ensure index is within bounds
-                x1, y1, x2, y2 = map(
-                    int,
-                    boxes[final_hands_index].xyxy[0].to("cpu").detach().numpy().copy(),)
-                box_cx, box_cy = int((x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
-                shape_hand = list_shape_hands[final_hands_index]
-                depth_hand = list_depth_boxes[final_hands_index]
-
                 cv2.rectangle(
                     color_image,
-                    (x1, y1),
-                    (x2, y2),
+                    (active_x1, active_y1),
+                    (active_x2, active_y2),
                     (0, 0, 255),
                     thickness=2,
                     lineType=cv2.LINE_4,
                 )
-                cv2.putText(color_image, f"Depth: {depth_hand}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+                cv2.putText(color_image, f"Depth: {active_depth_hand}", (active_x1, active_y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
                 cv2.putText(
                     color_image,
-                    shape_hand,
-                    (box_cx, box_cy),
+                    active_shape_hand,
+                    (active_box_cx, active_box_cy),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.7,
                     (0, 0, 255),
@@ -158,17 +143,9 @@ while True:
                 )
 
                 # Get hand shape
-                if shape_hand == "STOP":
-                    shape_hand = shape_hand[0]
-                    cur_stop_cx, cur_stop_cy = box_cx, box_cy
+                cur_stop_cx, cur_stop_cy = active_box_cx, active_box_cy
+                shape_hand = active_shape_hand[0]
 
-                    if flag_init_stop_x == True:
-                        flag_init_stop_x = False
-                        pre_stop_cx = cur_stop_cx
-                        pre_stop_cy = cur_stop_cy
-
-                else:
-                    shape_hand = shape_hand[0]
             else:
                 flag_continue = True
                 continue
@@ -176,6 +153,7 @@ while True:
         continue
     if flag_continue:
         continue
+
 
     #################### Predict pose ####################
     results_pose = model_pose(color_image, conf=0.8, verbose=False)  # Predict pose
@@ -249,20 +227,25 @@ while True:
     if shape_hand == "S":
         ratio_hand = shape_hand
         
-        if pre_stop_cx:
-            threshold_waving_x = lsx - rsx
-            threshold_waving_y = 40
-            distance_stop_x = abs(cur_stop_cx - pre_stop_cx)  # Get distance using x
-            distance_stop_y = abs(cur_stop_cy - pre_stop_cy)
-
-            # Check sharply movement
-            if (distance_stop_x > threshold_waving_x / 3 and distance_stop_y < threshold_waving_y):  
-                ratio_hand = "W"
-            # print(distance_stop_x,threshold_waving_x/3,distance_stop_y)
-            # print(distance_stop,threshold_waving)
-
+        if flag_init_stop_x == True:
+            flag_init_stop_x = False
             pre_stop_cx = cur_stop_cx
             pre_stop_cy = cur_stop_cy
+            continue
+
+        threshold_waving_x = lsx - rsx
+        threshold_waving_y = 40
+        distance_stop_x = abs(cur_stop_cx - pre_stop_cx)  # Get distance using x
+        distance_stop_y = abs(cur_stop_cy - pre_stop_cy)
+
+        # Check sharply movement
+        if (distance_stop_x > threshold_waving_x / 3 and distance_stop_y < threshold_waving_y):  
+            ratio_hand = "W"
+        # print(distance_stop_x,threshold_waving_x/3,distance_stop_y)
+        # print(distance_stop,threshold_waving)
+
+        pre_stop_cx = cur_stop_cx
+        pre_stop_cy = cur_stop_cy
 
     elif shape_hand == "T":
         if(arm_ratio < 0.3):
@@ -298,11 +281,6 @@ while True:
             motor_L = format((int)(motor_L * 100), "03")
             motor_R = format((int)(motor_R * 100), "03")
                 # print(f"L:{motor_L:.2f}, R:{motor_R:.2f}, DEPTH:{box_depth:.2f},E_L:{motor_encoder_L},E_R:{motor_encoder_R}"
-
-    # #Check out of boundary box
-    # if (box_cy < py1 or box_cy > py2 or box_cx < px1 or box_cx > px2):
-    #     print("Misrecognition hands out of the box.\n")
-    #     final_hand = 'N'
 
     # 3 times in-a-row validation
     this_hand = ratio_hand
@@ -358,3 +336,4 @@ while True:
         break
 
 pipeline.stop()  # 카메라 파이프라인을 종료합니다.
+
