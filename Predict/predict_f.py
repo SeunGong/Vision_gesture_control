@@ -1,6 +1,6 @@
 import numpy as np
 
-def calculate_angle_arm(a, b, c):
+def calculate_arm_angle(a, b, c):
 
     # 각 값을 받아 넘파이 배열로 변형
     a = np.array(a)  # 첫번째
@@ -9,14 +9,14 @@ def calculate_angle_arm(a, b, c):
 
     # 라디안을 계산하고 실제 각도로 변경한다.
     radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0])
-    angle_arm = np.abs(radians*180.0/np.pi)
+    arm_angle = np.abs(radians*180.0/np.pi)
 
     # 180도가 넘으면 360에서 뺀 값을 계산한다.
-    if angle_arm > 180.0:
-        angle_arm = 360-angle_arm
+    if arm_angle > 180.0:
+        arm_angle = 360-arm_angle
 
     # 각도를 리턴한다.
-    return angle_arm
+    return arm_angle
 
 # def getNoseDepth():
 #     #Get nose depth
@@ -44,3 +44,11 @@ def calculate_angle_arm(a, b, c):
     
 #     def change_name(self,name):
 #         self.name=name
+
+
+def calculate_arm_ratio(box_cy, shoulder_y, hip_y):
+    if hip_y > 0 and shoulder_y > 0:
+        sh_sub = hip_y - shoulder_y
+        sb_sub = abs(box_cy - shoulder_y)
+        return sb_sub / sh_sub
+    return None

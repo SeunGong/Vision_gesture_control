@@ -11,7 +11,9 @@ import matplotlib.pyplot as plt
 import platform
 
 from ultralytics import YOLO
-from predict_f import calculate_angle_arm
+from predict_f import calculate_arm_angle
+from predict_f import calculate_arm_ratio
+
 
 # Serial setting
 initial_time = time.time()
@@ -75,7 +77,7 @@ keypoint_indices = {
 w_flag = False
 print ("start!!!")
 boot_time = time.time()
-# print("booting time: ", boot_time - initial_time)
+print("booting time: ", boot_time - initial_time)
 while True:
     # Get camera frame#########################################
     time1 = time.time()
@@ -205,7 +207,7 @@ while True:
     #################### Predict pose ####################
     results_pose = model_pose(color_image, conf=0.8, verbose=False)  # Predict pose
     pose_color_image = results_pose[0].plot()  # Draw skelton to pose image
-    cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
+    # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     if results_pose is not None:
         for r in results_pose:
             keypoints = r.keypoints
@@ -287,28 +289,21 @@ while True:
     # Activate hand selection
     if euclidean_whl < euclidean_whr:
         active_hand = "LEFT"
-        arm_angle = calculate_angle_arm(
+        arm_angle = calculate_arm_angle(
             array_keypoints[3], array_keypoints[4], array_keypoints[5]
         )
+        arm_ratio = calculate_arm_ratio(box_cy, lsy, lhy)
+        if arm_ratio is None:
+            continue
     elif euclidean_whl > euclidean_whr:
         active_hand = "RIGHT"
-        arm_angle = calculate_angle_arm(
+        arm_angle = calculate_arm_angle(
             array_keypoints[0], array_keypoints[1], array_keypoints[2]
         )
+        arm_ratio = calculate_arm_ratio(box_cy, rsy, rhy)
+        if arm_ratio is None:
+            continue
 
-    # Get ratio between shoulder-hip and shoulder-box
-    if active_hand == "LEFT":
-        if lhy > 0 and lsy > 0:
-            sh_sub = lhy - lsy
-            sb_sub = abs(box_cy - lsy)
-            arm_ratio = sb_sub / sh_sub
-    elif active_hand == "RIGHT":
-        if rhy > 0 and rsy > 0:
-            sh_sub = rhy - rsy
-            sb_sub = abs(box_cy - rsy)
-            arm_ratio = sb_sub / sh_sub
-    else:
-        continue
 
     # Check arm_ratio and arm_angle
     ratio_hand = "N"
