@@ -105,13 +105,13 @@ while True:
 
             # Check front hand
             for number_box, box in enumerate(boxes):
-                x1, y1, x2, y2, box_cx, box_cy, depth_box, shape_hand = get_box_coordinates(box, depth_frame, model_hands, DEPTH_DISTANCE_MAX)
-                # list_depth_boxes[number_box] = depth_box
+                x1, y1, x2, y2, box_cx, box_cy, depth_hand_box, shape_hand = get_box_coordinates(box, depth_frame, model_hands, DEPTH_DISTANCE_MAX)
+                # list_depth_boxes[number_box] = depth_hand_box
                 # list_shape_hands[number_box] = shape_hand
 
                 # Drawing bounding box
-                if depth_box != 0 and depth_box < active_depth_box:
-                    active_depth_hand = depth_box
+                if depth_hand_box != 0 and depth_hand_box < active_depth_box:
+                    active_depth_hand = depth_hand_box
                     # final_hands_index = number_box
                     active_box_cx = box_cx
                     active_box_cy = box_cy
@@ -157,43 +157,47 @@ while True:
 
     #################### Predict pose ####################
     results_pose = model_pose(color_image, conf=0.8, verbose=False)  # Predict pose
-    pose_color_image = results_pose[0].plot()  # Draw skelton to pose image
+    # pose_color_image = results_pose[0].plot()  # Draw skelton to pose image
     # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     if results_pose is not None:
         for r in results_pose:
             keypoints = r.keypoints
             pose_boxes = r.boxes
 
-            pose_depth = float("inf")
-            final_pose_index = 0
+            active_depth_pose = float("inf")
+            # final_pose_index = 0
 
             # Check front pose
             for number_pose_box, box in enumerate(pose_boxes):
                 b = box.xyxy[0].to("cpu").detach().numpy().copy()
-                x1, y1, x2, y2 = map(int, b[:4])
-                pose_box_cx, pose_box_cy = int((x2 - x1) / 2 + x1), int(
-                    (y2 - y1) / 2 + y1
+                px1, py1, px2, py2 = map(int, b[:4])
+                pose_box_cx, pose_box_cy = int((px2 - px1) / 2 + px1), int(
+                    (py2 - py1) / 2 + py1
                 )  # Get box center coordinate
                 depth_pose_box = depth_frame.get_distance(pose_box_cx, pose_box_cy)
 
-                if depth_pose_box < pose_depth:
-                    pose_depth = depth_pose_box
-                    final_pose_index = number_pose_box
+                if depth_pose_box < active_depth_pose:
+                    active_depth_pose = depth_pose_box
+                    # final_pose_index = number_pose_box
+
+                    
+                    active_px1, active_py1, active_px2, active_py2 = px1, py1, px2, py2                   
+                    
+                    # Get keypoints
+                    for i, k in enumerate(keypoints[number_pose_box]):
+                        for kp_index, ap_index in keypoint_indices.items():
+                            if k.xy[0].size(0) > kp_index:
+                                array_keypoints[ap_index] = k.xy[0][kp_index].cpu().numpy()                    
 
             # Check index count more than pose count
             if len(pose_boxes) > 0:
-                coordi_pose = pose_boxes[final_pose_index].xyxy[0]
-                px1, py1, px2, py2 = map(int, coordi_pose[:4])
-                # cv2.putText(pose_color_image, "left", (px1, py1+10), cv2.FONT_HERSHEY_SIMPLEX,
+                # coordi_pose = pose_boxes[final_pose_index].xyxy[0]
+                # px1, py1, px2, py2 = map(int, coordi_pose[:4])
+                # cv2.putText(pose_color_image, "left", (active_px1, active_py1+10), cv2.FONT_HERSHEY_SIMPLEX,
                 #     0.7, (0, 255, 0), 2, cv2.LINE_4)
-                # cv2.putText(pose_color_image, "right", (px2, py2), cv2.FONT_HERSHEY_SIMPLEX,
+                # cv2.putText(pose_color_image, "right", (active_px2, active_py2), cv2.FONT_HERSHEY_SIMPLEX,
                 #     0.7, (0, 255, 0), 2, cv2.LINE_4)
 
-                # Get keypoints
-                for i, k in enumerate(keypoints[final_pose_index]):
-                    for kp_index, ap_index in keypoint_indices.items():
-                        if k.xy[0].size(0) > kp_index:
-                            array_keypoints[ap_index] = k.xy[0][kp_index].cpu().numpy()
                 
                 lsx, lsy = map(int, array_keypoints[3]) # Left shoulder
                 rsx, rsy = map(int, array_keypoints[0]) # Right shoulder
