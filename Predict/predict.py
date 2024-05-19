@@ -238,7 +238,7 @@ while True:
         if(arm_ratio > 0.45):
             if active_box_cx >= (3*lsx + rsx)/4:
                 ratio_hand = "L"
-            elif (3*lsx + rsx)/4 > active_box_cx and active_box_cx > (lsx + 3*rsx)/4:
+            elif (3*lsx + rsx)/4 > active_box_cx and active_box_cx >= (lsx + 3*rsx)/4:
                 ratio_hand = "F"
             else:
                 ratio_hand = "R"
@@ -256,15 +256,16 @@ while True:
     elif this_hand == "T":
         count_turn_gesture += 1
         count_gesture = 0
-        if count_turn_gesture > 5:
+        if count_turn_gesture > 10:
             count_turn_gesture = 0
             final_hand = this_hand
+
     elif this_hand == pre_gesture:
         count_gesture += 1
         if count_gesture > 3:
-            count_gesture = 0
-            count_turn_gesture = 0
             final_hand = this_hand
+            count_gesture -= 1
+            count_turn_gesture -= 1
     else:
         count_gesture = 0
     
@@ -273,7 +274,6 @@ while True:
         # print(f"<{final_hand}0000000>,angle:{arm_angle:.2f},ratio:{arm_ratio:.2f}")
         if platform.system() == "Linux":
             ser.write(str(f"<{final_hand}0000000>").encode("utf-8"))
-        
     else:
         pre_gesture = this_hand
     
@@ -292,4 +292,3 @@ while True:
         break
 
 pipeline.stop()  # 카메라 파이프라인을 종료합니다.
-
