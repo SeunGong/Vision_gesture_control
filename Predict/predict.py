@@ -16,7 +16,6 @@ from predict_f import *
 
 
 # Serial setting
-initial_time = time.time()
 if platform.system() == "Linux":
     ser = serial.Serial("/dev/ttyUSB0", 115200)
 
@@ -41,7 +40,6 @@ model_pose = YOLO("yolov8m-pose")
 model_hands = YOLO("240503.pt")
 
 # MACRO
-
 WEIGHT_DIRECTION = 0.0045
 WEIGHT_DEPTH = 0.9
 DEPTH_DISTANCE_MAX = 4
@@ -74,8 +72,6 @@ keypoint_indices = {
 
 array_keypoints = np.zeros((keypoints_count, 2))  # [RS,RE,RW,LS,LE,LW,]
 print ("start!!!")
-# boot_time = time.time()
-# print("booting time: ", boot_time - initial_time)
 
 
 while True:
@@ -97,50 +93,37 @@ while True:
     if results_hands is not None:
         for r in results_hands:
             boxes = r.boxes  # Boxes class
-            # final_hands_index = 0
             active_depth_box = float("inf")
-            # list_depth_boxes = [0] * len(boxes)
-            # list_shape_hands = [""] * len(boxes)
-            # x1, y1, x2, y2 = 0, 0, 0, 0
+
 
             # Check front hand
             for number_box, box in enumerate(boxes):
-                x1, y1, x2, y2, box_cx, box_cy, depth_hand_box, shape_hand = get_box_coordinates(box, depth_frame, model_hands, DEPTH_DISTANCE_MAX)
-                # list_depth_boxes[number_box] = depth_hand_box
-                # list_shape_hands[number_box] = shape_hand
+                x1, y1, x2, y2, box_cx, box_cy, depth_hand_box, shape_hand = get_box_coordinates(
+                    box, depth_frame, model_hands, DEPTH_DISTANCE_MAX)
 
                 # Drawing bounding box
                 if depth_hand_box != 0 and depth_hand_box < active_depth_box:
                     active_depth_hand = depth_hand_box
-                    # final_hands_index = number_box
                     active_box_cx = box_cx
                     active_box_cy = box_cy
                     active_x1, active_y1, active_x2, active_y2 = x1, y1, x2, y2
                     active_shape_hand = shape_hand
-                    
                 else:
                     flag_continue = True
 
             # select active hand
             if len(boxes) > 0:  # Ensure index is within bounds
-                # cv2.rectangle(
-                #     color_image,
-                #     (active_x1, active_y1),
-                #     (active_x2, active_y2),
-                #     (0, 0, 255),
-                #     thickness=2,
-                #     lineType=cv2.LINE_4,
-                # )
+                # cv2.rectangle(color_image, (active_x1, active_y1), (active_x2, active_y2), (0, 0, 255), thickness=2, lineType=cv2.LINE_4,)
                 # cv2.putText(color_image, f"Depth: {active_depth_hand}", (active_x1, active_y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
-                # cv2.putText(
-                #     color_image,
-                #     active_shape_hand,
-                #     (active_box_cx, active_box_cy),
-                #     cv2.FONT_HERSHEY_SIMPLEX,
-                #     0.7,
-                #     (0, 0, 255),
-                #     2,
-                # )
+                cv2.putText(
+                    color_image,
+                    active_shape_hand,
+                    (active_box_cx, active_box_cy),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 0, 255),
+                    2,
+                )
 
                 # Get hand shape
                 cur_stop_cx, cur_stop_cy = active_box_cx, active_box_cy
@@ -158,7 +141,8 @@ while True:
     #################### Predict pose ####################
     results_pose = model_pose(color_image, conf=0.8, verbose=False)  # Predict pose
     # pose_color_image = results_pose[0].plot()  # Draw skelton to pose image
-    # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
+    # cv2.imshow("predict", pose_color_image)
+    cv2.imshow("predict", color_image) 
     if results_pose is not None:
         for r in results_pose:
             keypoints = r.keypoints
@@ -178,9 +162,6 @@ while True:
 
                 if depth_pose_box < active_depth_pose:
                     active_depth_pose = depth_pose_box
-                    # final_pose_index = number_pose_box
-
-                    
                     active_px1, active_py1, active_px2, active_py2 = px1, py1, px2, py2                   
                     
                     # Get keypoints
@@ -191,14 +172,6 @@ while True:
 
             # Check index count more than pose count
             if len(pose_boxes) > 0:
-                # coordi_pose = pose_boxes[final_pose_index].xyxy[0]
-                # px1, py1, px2, py2 = map(int, coordi_pose[:4])
-                # cv2.putText(pose_color_image, "left", (active_px1, active_py1+10), cv2.FONT_HERSHEY_SIMPLEX,
-                #     0.7, (0, 255, 0), 2, cv2.LINE_4)
-                # cv2.putText(pose_color_image, "right", (active_px2, active_py2), cv2.FONT_HERSHEY_SIMPLEX,
-                #     0.7, (0, 255, 0), 2, cv2.LINE_4)
-
-                
                 lsx, lsy = map(int, array_keypoints[3]) # Left shoulder
                 rsx, rsy = map(int, array_keypoints[0]) # Right shoulder
                 lhy = int(array_keypoints[8][1])        # Left hip
@@ -206,7 +179,7 @@ while True:
                 lwx, lwy = map(int, array_keypoints[5]) # Left wrist
                 rwx, rwy = map(int, array_keypoints[2]) # Right wrist
                 coordinates = [lsx, lsy, rsx, rsy, lhy, rhy, lwx, lwy, rwx, rwy]
-                # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
+                # cv2.imshow("predict", pose_color_image)
 
                 if any(coord == 0 for coord in coordinates):
                     flag_continue = True
@@ -221,7 +194,6 @@ while True:
 
 
     ###############################Post-processing###################################
-    
     active_hand, arm_angle, arm_ratio = select_active_hand(box_cx, box_cy, array_keypoints)
     if arm_ratio is None:
         continue
@@ -315,7 +287,7 @@ while True:
         waving_flag = False
 
     time2 = time.time()
-    print("running time: ", time2 - time1)
+    # print("running time: ", time2 - time1)
     if cv2.waitKey(1) & 0xFF == ord("q"):
         if platform.system() == "Linux":
             ser.close()
