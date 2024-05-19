@@ -52,3 +52,24 @@ def calculate_arm_ratio(box_cy, shoulder_y, hip_y):
         sb_sub = abs(box_cy - shoulder_y)
         return sb_sub / sh_sub
     return None
+
+# Distinction between left and right hands
+def calculate_euclidean_distance(x1, y1, x2, y2):
+    return np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+
+
+# Activate hand selection
+def select_active_hand(box_cx, box_cy, keypoints):
+    euclidean_whl = calculate_euclidean_distance(box_cx, box_cy, keypoints[5][0], keypoints[5][1])
+    euclidean_whr = calculate_euclidean_distance(box_cx, box_cy, keypoints[2][0], keypoints[2][1])
+
+    if euclidean_whl < euclidean_whr:
+        active_hand = "LEFT"
+        arm_angle = calculate_arm_angle(keypoints[3], keypoints[4], keypoints[5])
+        arm_ratio = calculate_arm_ratio(box_cy, keypoints[3][1], keypoints[8][1])
+    else:
+        active_hand = "RIGHT"
+        arm_angle = calculate_arm_angle(keypoints[0], keypoints[1], keypoints[2])
+        arm_ratio = calculate_arm_ratio(box_cy, keypoints[0][1], keypoints[7][1])
+
+    return active_hand, arm_angle, arm_ratio

@@ -11,8 +11,7 @@ import matplotlib.pyplot as plt
 import platform
 
 from ultralytics import YOLO
-from predict_f import calculate_arm_angle
-from predict_f import calculate_arm_ratio
+from predict_f import *
 
 
 # Serial setting
@@ -75,11 +74,10 @@ keypoint_indices = {
 }
 
 array_keypoints = np.zeros((keypoints_count, 2))  # [RS,RE,RW,LS,LE,LW,]
-w_flag = False
+waving_flag = False
 print ("start!!!")
 boot_time = time.time()
 print("booting time: ", boot_time - initial_time)
-
 
 
 while True:
@@ -89,12 +87,12 @@ while True:
     aligned_frames = align.process(frames)
     color_frame = aligned_frames.get_color_frame()
     depth_frame = aligned_frames.get_depth_frame()
-    if not color_frame:  # Skip frame dosen't exigst color image data
+    if not color_frame:  # Skip frame dosen't exist color image data
         continue
     color_image = np.asanyarray(color_frame.get_data())
     depth_image = np.asanyarray(depth_frame.get_data())
 
-    flag_continue = 0
+    flag_continue = False
 
     #################### Predict active hands ####################
     results_hands = model_hands(color_image, conf=0.8, verbose=False)
@@ -129,14 +127,13 @@ while True:
                     active_depth_box = depth_box
                     final_hands_index = number_box
                 else:
-                    flag_continue=1
+                    flag_continue = True
 
             # select active hand
             if len(boxes) > 0:  # Ensure index is within bounds
                 x1, y1, x2, y2 = map(
                     int,
-                    boxes[final_hands_index].xyxy[0].to("cpu").detach().numpy().copy(),
-                )
+                    boxes[final_hands_index].xyxy[0].to("cpu").detach().numpy().copy(),)
                 box_cx, box_cy = int((x2 - x1) / 2 + x1), int((y2 - y1) / 2 + y1)
                 shape_hand = list_shape_hands[final_hands_index]
                 depth_hand = list_depth_boxes[final_hands_index]
@@ -173,13 +170,11 @@ while True:
                 else:
                     shape_hand = shape_hand[0]
             else:
-                flag_continue = 1
+                flag_continue = True
                 continue
     else: 
         continue
-
-    if flag_continue == 1:
-        
+    if flag_continue:
         continue
 
     #################### Predict pose ####################
@@ -232,51 +227,22 @@ while True:
                 # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
 
                 if any(coord == 0 for coord in coordinates):
-                    flag_continue = 1
+                    flag_continue = True
                     continue
-
-
             else:
-                flag_continue = 1
+                flag_continue = True
                 continue
     else: 
         continue
-
-    if flag_continue == 1:
-        
+    if flag_continue:
         continue
 
 
     ###############################Post-processing###################################
-
-    # Distinction between left and right hands
-    euclidean_whl = np.sqrt(
-        (box_cx - lwx) ** 2
-        + (box_cy - lwy) ** 2
-    )
-    euclidean_whr = np.sqrt(
-        (box_cx - rwx) ** 2
-        + (box_cy - rwy) ** 2
-    )
-
-    # Activate hand selection
-    if euclidean_whl < euclidean_whr:
-        active_hand = "LEFT"
-        arm_angle = calculate_arm_angle(
-            array_keypoints[3], array_keypoints[4], array_keypoints[5]
-        )
-        arm_ratio = calculate_arm_ratio(box_cy, lsy, lhy)
-        if arm_ratio is None:
-            continue
-    elif euclidean_whl > euclidean_whr:
-        active_hand = "RIGHT"
-        arm_angle = calculate_arm_angle(
-            array_keypoints[0], array_keypoints[1], array_keypoints[2]
-        )
-        arm_ratio = calculate_arm_ratio(box_cy, rsy, rhy)
-        if arm_ratio is None:
-            continue
-
+    
+    active_hand, arm_angle, arm_ratio = select_active_hand(box_cx, box_cy, array_keypoints)
+    if arm_ratio is None:
+        continue
 
     # Check arm_ratio and arm_angle
     ratio_hand = "N"
@@ -346,7 +312,7 @@ while True:
         final_hand = this_hand
         count_gesture = 0
         count_turn_gesture = 0
-        w_flag = True
+        waving_flag = True
 
     elif this_hand == "T":
         count_turn_gesture += 1
@@ -380,9 +346,9 @@ while True:
 
     # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     print(f"<{shape_hand}{ratio_hand}{final_hand}0000000>,angle:{arm_angle:.2f},ratio:{arm_ratio:.2f}")
-    if w_flag:
+    if waving_flag:
         time.sleep(2)
-        w_flag = False
+        waving_flag = False
 
     time2 = time.time()
     print("running time: ", time2 - time1)
