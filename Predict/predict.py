@@ -263,24 +263,15 @@ while True:
     elif shape_hand == "P":
         if(arm_ratio > 0.45):
             ratio_hand = shape_hand
-
-            distance_depth = active_depth_box * WEIGHT_DEPTH
-            if box_cx > 320:
-                box_center_sub = box_cx - 320
-                # move_direction = 'R'
-                motor_L = distance_depth + (box_center_sub * WEIGHT_DIRECTION)
-                motor_R = distance_depth
-            elif box_cx < 320:
-                box_center_sub = 320 - box_cx
-                # move_direction = 'L'
-                motor_L = distance_depth
-                motor_R = distance_depth + (box_center_sub * WEIGHT_DIRECTION)
-            else:
-                motor_L = distance_depth
-                motor_R = distance_depth
-            motor_L = format((int)(motor_L * 100), "03")
-            motor_R = format((int)(motor_R * 100), "03")
-                # print(f"L:{motor_L:.2f}, R:{motor_R:.2f}, DEPTH:{box_depth:.2f},E_L:{motor_encoder_L},E_R:{motor_encoder_R}"
+            if active_hand == "LEFT":
+                if active_box_cx > lsx:
+                    ratio_hand = "R"
+                else:
+                    ratio_hand = "L"
+                if active_box_cx > rsx:
+                    ratio_hand = "L"
+                else:
+                    ratio_hand = "R"
 
     # 3 times in-a-row validation
     this_hand = ratio_hand
@@ -307,12 +298,7 @@ while True:
     else:
         count_gesture = 0
     
-    if final_hand == "P":
-        print(f"<L{motor_L}R{motor_R}>")
-        # ser.write(str(f"<{final_hand}>")).encode('utf-8'))
-        if platform.system() == "Linux":
-            ser.write(str(f"<L{motor_L}R{motor_R}>").encode("utf-8"))
-    elif final_hand != "N" and final_hand != "P":
+    if final_hand != "N":
         # print(f"<{final_hand}0000000>")
         # print(f"<{final_hand}0000000>,angle:{arm_angle:.2f},ratio:{arm_ratio:.2f}")
         if platform.system() == "Linux":
@@ -323,7 +309,7 @@ while True:
     
 
     # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
-    print(f"<{shape_hand}{ratio_hand}{final_hand}0000000>,angle:{arm_angle:.2f},ratio:{arm_ratio:.2f}")
+    print(f"<{shape_hand}{ratio_hand}{final_hand}{active_hand}>,angle:{arm_angle:.2f},ratio:{arm_ratio:.2f}")
     if waving_flag:
         time.sleep(2)
         waving_flag = False
