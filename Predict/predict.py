@@ -123,24 +123,24 @@ while True:
 
             # select active hand
             if len(boxes) > 0:  # Ensure index is within bounds
-                cv2.rectangle(
-                    color_image,
-                    (active_x1, active_y1),
-                    (active_x2, active_y2),
-                    (0, 0, 255),
-                    thickness=2,
-                    lineType=cv2.LINE_4,
-                )
-                cv2.putText(color_image, f"Depth: {active_depth_hand}", (active_x1, active_y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
-                cv2.putText(
-                    color_image,
-                    active_shape_hand,
-                    (active_box_cx, active_box_cy),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (0, 0, 255),
-                    2,
-                )
+                # cv2.rectangle(
+                #     color_image,
+                #     (active_x1, active_y1),
+                #     (active_x2, active_y2),
+                #     (0, 0, 255),
+                #     thickness=2,
+                #     lineType=cv2.LINE_4,
+                # )
+                # cv2.putText(color_image, f"Depth: {active_depth_hand}", (active_x1, active_y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+                # cv2.putText(
+                #     color_image,
+                #     active_shape_hand,
+                #     (active_box_cx, active_box_cy),
+                #     cv2.FONT_HERSHEY_SIMPLEX,
+                #     0.7,
+                #     (0, 0, 255),
+                #     2,
+                # )
 
                 # Get hand shape
                 cur_stop_cx, cur_stop_cy = active_box_cx, active_box_cy
@@ -158,7 +158,7 @@ while True:
     #################### Predict pose ####################
     results_pose = model_pose(color_image, conf=0.8, verbose=False)  # Predict pose
     pose_color_image = results_pose[0].plot()  # Draw skelton to pose image
-    cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
+    # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     if results_pose is not None:
         for r in results_pose:
             keypoints = r.keypoints
@@ -262,16 +262,12 @@ while True:
             ratio_hand = shape_hand
     elif shape_hand == "P":
         if(arm_ratio > 0.45):
-            ratio_hand = shape_hand
-            if active_hand == "LEFT":
-                if active_box_cx > lsx:
-                    ratio_hand = "R"
-                else:
-                    ratio_hand = "L"
-                if active_box_cx > rsx:
-                    ratio_hand = "L"
-                else:
-                    ratio_hand = "R"
+            if rsx >= active_box_cx:
+                ratio_hand = "L"
+            elif lsx > active_box_cx and active_box_cx > rsx:
+                ratio_hand = "F"
+            else:
+                ratio_hand = "R"
 
     # 3 times in-a-row validation
     this_hand = ratio_hand
@@ -309,7 +305,7 @@ while True:
     
 
     # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
-    print(f"<{shape_hand}{ratio_hand}{final_hand}{active_hand}>,angle:{arm_angle:.2f},ratio:{arm_ratio:.2f}")
+    print(f"<{shape_hand}{ratio_hand}{final_hand}>,angle:{arm_angle:.2f},ratio:{arm_ratio:.2f}")
     if waving_flag:
         time.sleep(2)
         waving_flag = False
