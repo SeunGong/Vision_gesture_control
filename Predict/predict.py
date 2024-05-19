@@ -147,9 +147,7 @@ while True:
         for r in results_pose:
             keypoints = r.keypoints
             pose_boxes = r.boxes
-
             active_depth_pose = float("inf")
-            # final_pose_index = 0
 
             # Check front pose
             for number_pose_box, box in enumerate(pose_boxes):
@@ -238,9 +236,9 @@ while True:
             ratio_hand = shape_hand
     elif shape_hand == "P":
         if(arm_ratio > 0.45):
-            if rsx >= active_box_cx:
+            if active_box_cx >= (3*lsx + rsx)/4:
                 ratio_hand = "L"
-            elif lsx > active_box_cx and active_box_cx > rsx:
+            elif (3*lsx + rsx)/4 > active_box_cx and active_box_cx > (lsx + 3*rsx)/4:
                 ratio_hand = "F"
             else:
                 ratio_hand = "R"
