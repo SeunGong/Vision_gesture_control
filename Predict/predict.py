@@ -13,7 +13,11 @@ import platform
 from ultralytics import YOLO
 from predict_f import *
 
+from collections import deque
 
+# Initialize variables
+pre_stop_positions = deque(maxlen=5)  # Keep the last 5 positions
+pre_stop_positions.append((0, 0))  # Initial position
 
 # Serial setting
 if platform.system() == "Linux":
@@ -203,23 +207,22 @@ while True:
         
         if flag_init_stop_x == True:
             flag_init_stop_x = False
-            pre_stop_cx = cur_stop_cx
-            pre_stop_cy = cur_stop_cy
+            pre_stop_positions[-1] = (cur_stop_cx, cur_stop_cy)
             continue
 
-        threshold_waving_x = lsx - rsx
-        threshold_waving_y = 40
-        distance_stop_x = abs(cur_stop_cx - pre_stop_cx)  # Get distance using x
-        distance_stop_y = abs(cur_stop_cy - pre_stop_cy)
+        threshold_waving_y = 70
+        pre_stop_positions.append((cur_stop_cx, cur_stop_cy))
 
-        # Check sharply movement
-        if (distance_stop_x > threshold_waving_x / 3 and distance_stop_y < threshold_waving_y):  
-            ratio_hand = "W"
-        # print(distance_stop_x,threshold_waving_x/3,distance_stop_y)
-        # print(distance_stop,threshold_waving)
+        if len(pre_stop_positions) == 5:
+            x_positions = [x for x, y in pre_stop_positions]
+            y_positions = [y for x, y in pre_stop_positions]
 
-        pre_stop_cx = cur_stop_cx
-        pre_stop_cy = cur_stop_cy
+            # Check sharply movement
+            x_variance = max(x_positions) - min(x_positions)
+            y_variance = max(y_positions) - min(y_positions)
+            if x_variance > (lsx - rsx) * 0.9 and y_variance < threshold_waving_y:
+                ratio_hand = "W"
+
 
     elif shape_hand == "T":
         if(arm_ratio < 0.3):
@@ -236,9 +239,9 @@ while True:
             ratio_hand = shape_hand
     elif shape_hand == "P":
         if(arm_ratio > 0.45):
-            if active_box_cx >= (3*lsx + rsx)/4:
+            if active_box_cx >= (3 * lsx + rsx) / 4:
                 ratio_hand = "L"
-            elif (3*lsx + rsx)/4 > active_box_cx and active_box_cx >= (lsx + 3*rsx)/4:
+            elif (3 * lsx + rsx) / 4 > active_box_cx and active_box_cx >= (lsx + 3 * rsx) / 4:
                 ratio_hand = "F"
             else:
                 ratio_hand = "R"
@@ -246,26 +249,22 @@ while True:
     # 3 times in-a-row validation
     this_hand = ratio_hand
     final_hand = "N"
-    
-    if this_hand == "W":
-        final_hand = this_hand
-        count_gesture = 0
-        count_turn_gesture = 0
-        waving_flag = True
 
-    elif this_hand == "T":
+    if this_hand == "T":
         count_turn_gesture += 1
         count_gesture = 0
-        if count_turn_gesture > 10:
+        if count_turn_gesture >= 7:
             count_turn_gesture = 0
-            final_hand = this_hand
+            final_hand = "T"
 
     elif this_hand == pre_gesture:
         count_gesture += 1
-        if count_gesture > 3:
+        if count_gesture > 2:
             final_hand = this_hand
             count_gesture -= 1
             count_turn_gesture -= 1
+            if this_hand == "W":
+                waving_flag = True
     else:
         count_gesture = 0
     
@@ -273,7 +272,7 @@ while True:
         # print(f"<{final_hand}0000000>")
         # print(f"<{final_hand}0000000>,angle:{arm_angle:.2f},ratio:{arm_ratio:.2f}")
         if platform.system() == "Linux":
-            ser.write(str(f"<{final_hand}0000000>").encode("utf-8"))
+            ser.write(str(f"<{final_hand}000000>").encode("utf-8"))
     else:
         pre_gesture = this_hand
     
