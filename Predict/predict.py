@@ -19,6 +19,9 @@ from collections import deque
 pre_stop_positions = deque(maxlen=5)  # Keep the last 5 positions
 pre_stop_positions.append((0, 0))  # Initial position
 
+pre_turn_positions = deque(maxlen=5)  # Keep the last 5 positions
+pre_turn_positions.append((0, 0))  # Initial position
+
 # Serial setting
 if platform.system() == "Linux":
     ser = serial.Serial("/dev/ttyUSB0", 115200)
@@ -49,17 +52,21 @@ WEIGHT_DEPTH = 0.9
 DEPTH_DISTANCE_MAX = 4
 MOTOR_ENCODER = 4096
 MOTOR_DISTANCE = 0.534
+THRESHOLD_TURN_Y = 40
+THRESHOLD_WAVING_Y = 40
+
 
 count_gesture = 0
 count_turn_gesture = 0
 
 # Init variable
 pre_stop_cx, pre_stop_cy = 0, 0  # Previous center coordinates
+pre_turn_cx, pre_turn_cy = 0, 0  # Previous center coordinates
 pre_gesture = "N"
 
 # Flag
 flag_init_stop_x = True
-waving_flag = False
+delay_flag = False
 
 keypoints_count = 9  # Number of array for pose coordinate
 keypoint_indices = {
@@ -114,20 +121,22 @@ while True:
                     active_shape_hand = shape_hand
                 else:
                     flag_continue = True
-
+                    continue
+            if flag_continue:
+                continue
             # select active hand
             if len(boxes) > 0:  # Ensure index is within bounds
                 # cv2.rectangle(color_image, (active_x1, active_y1), (active_x2, active_y2), (0, 0, 255), thickness=2, lineType=cv2.LINE_4,)
                 # cv2.putText(color_image, f"Depth: {active_depth_hand}", (active_x1, active_y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
-                cv2.putText(
-                    color_image,
-                    active_shape_hand,
-                    (active_box_cx, active_box_cy),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (0, 0, 255),
-                    2,
-                )
+                #cv2.putText(
+                #    color_image,
+                #    active_shape_hand,
+                #    (active_box_cx, active_box_cy),
+                #    cv2.FONT_HERSHEY_SIMPLEX,
+                #    0.7,
+                #    (0, 0, 255),
+                #    2,
+                #)
 
                 # Get hand shape
                 cur_stop_cx, cur_stop_cy = active_box_cx, active_box_cy
@@ -146,7 +155,7 @@ while True:
     results_pose = model_pose(color_image, conf=0.8, verbose=False)  # Predict pose
     # pose_color_image = results_pose[0].plot()  # Draw skelton to pose image
     # cv2.imshow("predict", pose_color_image)
-    cv2.imshow("predict", color_image) 
+    #cv2.imshow("predict", color_image) 
     if results_pose is not None:
         for r in results_pose:
             keypoints = r.keypoints
@@ -205,23 +214,23 @@ while True:
     if shape_hand == "S":
         ratio_hand = shape_hand
         
-        if flag_init_stop_x == True:
-            flag_init_stop_x = False
-            pre_stop_positions[-1] = (cur_stop_cx, cur_stop_cy)
-            continue
+        # if flag_init_stop_x == True:
+        #     flag_init_stop_x = False
+        #     pre_stop_positions[-1] = (cur_stop_cx, cur_stop_cy)
+        #     continue
 
-        threshold_waving_y = 70
-        pre_stop_positions.append((cur_stop_cx, cur_stop_cy))
+        # threshold_waving_y = 40
+        # pre_stop_positions.append((cur_stop_cx, cur_stop_cy))
 
-        if len(pre_stop_positions) == 5:
-            x_positions = [x for x, y in pre_stop_positions]
-            y_positions = [y for x, y in pre_stop_positions]
+        # if len(pre_stop_positions) == 5:
+        #     x_positions = [x for x, y in pre_stop_positions]
+        #     y_positions = [y for x, y in pre_stop_positions]
 
-            # Check sharply movement
-            x_variance = max(x_positions) - min(x_positions)
-            y_variance = max(y_positions) - min(y_positions)
-            if x_variance > (lsx - rsx) * 0.9 and y_variance < threshold_waving_y:
-                ratio_hand = "W"
+        #     # Check sharply movement
+        #     x_variance = max(x_positions) - min(x_positions)
+        #     y_variance = max(y_positions) - min(y_positions)
+        #     if x_variance > (lsx - rsx) * 0.9 and y_variance < threshold_waving_y:
+        #         ratio_hand = "W"
 
 
     elif shape_hand == "T":
@@ -240,31 +249,57 @@ while True:
     elif shape_hand == "P":
         if(arm_ratio > 0.45):
             if active_box_cx >= (3 * lsx + rsx) / 4:
-                ratio_hand = "L"
+                ratio_hand = "R"
             elif (3 * lsx + rsx) / 4 > active_box_cx and active_box_cx >= (lsx + 3 * rsx) / 4:
                 ratio_hand = "F"
             else:
-                ratio_hand = "R"
+                ratio_hand = "L"
 
     # 3 times in-a-row validation
     this_hand = ratio_hand
     final_hand = "N"
 
     if this_hand == "T":
+        pre_turn_positions.append((active_box_cx, active_box_cy))
         count_turn_gesture += 1
         count_gesture = 0
+
+        # Check sharply movement
+        x_positions = [x for x, y in pre_turn_positions]
+        y_positions = [y for x, y in pre_turn_positions]
+        x_variance = max(x_positions) - min(x_positions)
+        y_variance = max(y_positions) - min(y_positions)        
+
         if count_turn_gesture >= 7:
-            count_turn_gesture = 0
-            final_hand = "T"
+            if x_variance < (lsx - rsx) * 0.2 and y_variance < THRESHOLD_TURN_Y:
+                count_turn_gesture = 0
+                final_hand = "T"
+                delay_flag = True        
 
     elif this_hand == pre_gesture:
+        pre_stop_positions.append((active_box_cx, active_box_cy))
         count_gesture += 1
+
         if count_gesture > 2:
-            final_hand = this_hand
             count_gesture -= 1
-            count_turn_gesture -= 1
-            if this_hand == "W":
-                waving_flag = True
+            count_turn_gesture = 0
+
+            # Check sharply movement
+            x_positions = [x for x, y in pre_stop_positions]
+            y_positions = [y for x, y in pre_stop_positions]
+            x_variance = max(x_positions) - min(x_positions)
+            y_variance = max(y_positions) - min(y_positions)
+
+            if (this_hand == "S"):
+                if x_variance > (lsx - rsx) * 0.8 and y_variance < THRESHOLD_WAVING_Y:
+                    final_hand = "W"
+                    delay_flag = True
+                else:
+                    final_hand = "S"
+
+            else:
+                final_hand = this_hand
+    
     else:
         count_gesture = 0
     
@@ -279,9 +314,9 @@ while True:
 
     # cv2.imshow("predict", pose_color_image)  # 주석 처리된 부분은 필요에 따라 활성화할 수 있습니다.
     print(f"<{shape_hand}{ratio_hand}{final_hand}>,angle:{arm_angle:.2f},ratio:{arm_ratio:.2f}")
-    if waving_flag:
+    if delay_flag:
+        delay_flag = False
         time.sleep(2)
-        waving_flag = False
 
     time2 = time.time()
     # print("running time: ", time2 - time1)
