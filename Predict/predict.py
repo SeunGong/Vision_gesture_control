@@ -52,6 +52,7 @@ WEIGHT_DEPTH = 0.9
 DEPTH_DISTANCE_MAX = 4
 MOTOR_ENCODER = 4096
 MOTOR_DISTANCE = 0.534
+THRESHOLD_TURN_X = 40
 THRESHOLD_TURN_Y = 40
 THRESHOLD_WAVING_Y = 40
 
@@ -248,9 +249,9 @@ while True:
             ratio_hand = shape_hand
     elif shape_hand == "P":
         if(arm_ratio > 0.45):
-            if active_box_cx >= (3 * lsx + rsx) / 4:
+            if active_box_cx >= 350:
                 ratio_hand = "R"
-            elif (3 * lsx + rsx) / 4 > active_box_cx and active_box_cx >= (lsx + 3 * rsx) / 4:
+            elif 350 > active_box_cx and active_box_cx >= 290:
                 ratio_hand = "F"
             else:
                 ratio_hand = "L"
@@ -270,11 +271,11 @@ while True:
         x_variance = max(x_positions) - min(x_positions)
         y_variance = max(y_positions) - min(y_positions)        
 
-        if count_turn_gesture >= 7:
-            if x_variance < (lsx - rsx) * 0.2 and y_variance < THRESHOLD_TURN_Y:
+        if count_turn_gesture >= 5:
+            if x_variance < THRESHOLD_TURN_X and y_variance < THRESHOLD_TURN_Y:
                 count_turn_gesture = 0
                 final_hand = "T"
-                delay_flag = True        
+                delay_flag = True
 
     elif this_hand == pre_gesture:
         pre_stop_positions.append((active_box_cx, active_box_cy))
@@ -293,6 +294,7 @@ while True:
             if (this_hand == "S"):
                 if x_variance > (lsx - rsx) * 0.8 and y_variance < THRESHOLD_WAVING_Y:
                     final_hand = "W"
+                    count_gesture = 0
                     delay_flag = True
                 else:
                     final_hand = "S"
