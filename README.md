@@ -13,8 +13,8 @@ This project is hand gesture recognization for interacting with AngGo Z (wheeled
 5. Train
 ***
 ### Argumentation
-- dataset_argument_test.py: Test file for one image augmentation
-- dataset_argumentation.py: Data augmentation multi image and label, this file purpose is augmentation image and lable of one image dataset
+- dataset_augment_test.py: Test file for one image augmentation
+- dataset_augmentation.py: Data augmentation multi image and label, this file purpose is augmentation image and lable of one image dataset
   1. set folder
   2. set image_dir
   3. set label_dir
