@@ -1,8 +1,9 @@
-This project is recognization hand gesture for interacting with mobile robot.
-
+This project is hand gesture recognization for interacting with AngGo Z (wheeled mobile robot).
+```
   Object Detection Model : yolov8n.pt (for Hands detect)
   Pose Model : yolov8m-pose.pt (for pose detect)
   Python version : 3.9.13 64-bit, 3.9.19(conda)
+```
 
 ## Folder list
 1. Argumentation
